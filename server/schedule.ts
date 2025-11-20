@@ -76,20 +76,21 @@ export async function carregarAgendamentosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Agendamento[]> {
-  return [
-    {
-      id: `${barbeiroId}-manhã`,
-      inicio: "11:00",
-      fim: "11:30",
-      data,
-    },
-    {
-      id: `${barbeiroId}-tarde`,
-      inicio: "15:00",
-      fim: "15:30",
-      data,
-    },
-  ];
+  const { supabase } = await import("./supabase");
+
+  const { data: agendamentos, error } = await supabase
+    .from("agendamentos")
+    .select("inicio, fim")
+    .eq("data", data)
+    .eq("barbeiro_id", barbeiroId);
+
+  if (error || !agendamentos) {
+    throw new Error(
+      `Não foi possível carregar agendamentos para barbeiro ${barbeiroId} na data ${data}`,
+    );
+  }
+
+  return agendamentos;
 }
 
 export async function carregarBloqueiosDoDia(
