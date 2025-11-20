@@ -55,20 +55,17 @@ export async function carregarConfigAgenda(
   barbeiroId: string,
   data: string,
 ): Promise<AgendaConfig> {
-  const diaDaSemana = new Date(`${data}T00:00:00Z`).getUTCDay();
-  const configsPorDia: Record<number, AgendaConfig> = {
-    0: { abre: "10:00", fecha: "14:00", duracao: 30 },
-    1: { abre: "09:00", fecha: "18:00", duracao: 30 },
-    2: { abre: "09:00", fecha: "18:00", duracao: 30 },
-    3: { abre: "09:00", fecha: "18:00", duracao: 30 },
-    4: { abre: "09:00", fecha: "18:00", duracao: 30 },
-    5: { abre: "09:00", fecha: "17:00", duracao: 30 },
-    6: { abre: "10:00", fecha: "16:00", duracao: 30 },
-  };
+  const { supabase } = await import("./supabase");
+  const diaDaSemana = new Date(`${data}T00:00:00Z`).getUTCDay() || 7;
 
-  const config = configsPorDia[diaDaSemana];
+  const { data: config, error } = await supabase
+    .from("agenda_config")
+    .select("abre, fecha, duracao")
+    .eq("barbeiro_id", barbeiroId)
+    .eq("dia_semana", diaDaSemana)
+    .maybeSingle();
 
-  if (!config) {
+  if (error || !config) {
     throw new Error(`Barbeiro ${barbeiroId} sem configuração para o dia ${data}`);
   }
 
