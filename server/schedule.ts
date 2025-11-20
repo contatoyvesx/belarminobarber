@@ -35,86 +35,101 @@ export interface NovoAgendamento {
   barbeiro_id: string;
 }
 
+//
+// ---------- UTILIDADES DE HORÁRIO ----------
+//
 const minutosDoHorario = (horario: string): number => {
   const [hora, minuto] = horario.split(":").map(Number);
   return hora * 60 + minuto;
 };
 
 const horarioEmMinutos = (minutos: number): string => {
-  const hora = Math.floor(minutos / 60).toString().padStart(2, "0");
+  const hora = Math.floor(minutos / 60)
+    .toString()
+    .padStart(2, "0");
   const minuto = (minutos % 60).toString().padStart(2, "0");
   return `${hora}:${minuto}`;
 };
 
-/**
- * CORREÇÃO AQUI ❗
- * Agora o dia da semana segue padrão:
- * Segunda = 1 ... Sábado = 6 (igual sua tabela)
- */
+//
+// ---------- CONFIGURAÇÃO DO DIA ----------
+//
+
 export async function carregarConfigAgenda(
   barbeiroId: string,
   data: string,
 ): Promise<AgendaConfig> {
+  const diaJS = new Date(data).getDay(); // 0 domingo
+  const diaDaSemana = diaJS === 0 ? 7 : diaJS; // domingo vira 7 (SQL compatível)
 
-  const diaJS = new Date(data).getDay(); // 0 = domingo
-  const diaDaSemana = diaJS === 0 ? 7 : diaJS; // domingo vira 7, segunda=1, terça=2 ...
+  console.log("📆 Buscando config:", { barbeiroId, data, diaJS, diaDaSemana });
 
   const { data: config, error } = await supabase
     .from("agenda_config")
     .select("abre, fecha, duracao")
     .eq("barbeiro_id", barbeiroId)
-    .eq("dia_semana", diaDaSemana)
+    .in("dia_semana", [diaDaSemana, String(diaDaSemana)]) // compatível com TEXT ou INT
     .maybeSingle();
 
-  if (error || !config) {
+  if (error) {
+    console.error("❌ Erro SQL config:", error);
+    throw new Error("Erro ao buscar configuração de agenda.");
+  }
+
+  if (!config) {
     throw new Error(
-      `Nenhuma configuração encontrada para barbeiro ${barbeiroId} em ${data} (dia ${diaDaSemana})`
+      `Nenhuma configuração encontrada para barbeiro ${barbeiroId} no dia ${data} (dia ${diaDaSemana})`
     );
   }
 
   return config;
 }
 
+//
+// ---------- AGENDAMENTOS ----------
+//
 export async function carregarAgendamentosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Agendamento[]> {
-
   const { data: agendamentos, error } = await supabase
     .from("agendamentos")
-    .select("id, inicio, fim, data")
+    .select("inicio, fim")
     .eq("data", data)
     .eq("barbeiro_id", barbeiroId);
 
-  if (error || !agendamentos) {
-    throw new Error(
-      `Erro ao buscar agendamentos do barbeiro ${barbeiroId} no dia ${data}`
-    );
+  if (error) {
+    console.error("❌ Erro SQL agendamentos:", error);
+    throw new Error("Erro ao buscar agendamentos.");
   }
 
-  return agendamentos;
+  return agendamentos ?? [];
 }
 
+//
+// ---------- BLOQUEIOS ----------
+//
 export async function carregarBloqueiosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Bloqueio[]> {
-
   const { data: bloqueios, error } = await supabase
     .from("bloqueios")
-    .select("id, inicio, fim, data")
+    .select("inicio, fim")
     .eq("data", data)
     .eq("barbeiro_id", barbeiroId);
 
-  if (error || !bloqueios) {
-    throw new Error(
-      `Erro ao buscar bloqueios do barbeiro ${barbeiroId} no dia ${data}`
-    );
+  if (error) {
+    console.error("❌ Erro SQL bloqueios:", error);
+    throw new Error("Erro ao buscar bloqueios.");
   }
 
-  return bloqueios;
+  return bloqueios ?? [];
 }
 
+//
+// ---------- GERA LISTA DE HORÁRIOS ----------
+//
 export function gerarHorariosPossiveis(config: AgendaConfig): string[] {
   const horarios: string[] = [];
   const inicio = minutosDoHorario(config.abre);
@@ -132,22 +147,21 @@ export function removerHorariosOcupados(
   agendamentos: Agendamento[],
   passoMinutos: number,
 ): string[] {
-
-  const horariosIndisponiveis = new Set(
+  const ocupados = new Set(
     agendamentos.flatMap(({ inicio, fim }) => {
       const inicioMin = minutosDoHorario(inicio);
       const fimMin = minutosDoHorario(fim);
       const intervalos: string[] = [];
 
-      for (let minuto = inicioMin; minuto < fimMin; minuto += passoMinutos) {
-        intervalos.push(horarioEmMinutos(minuto));
+      for (let m = inicioMin; m < fimMin; m += passoMinutos) {
+        intervalos.push(horarioEmMinutos(m));
       }
 
       return intervalos;
-    }),
+    })
   );
 
-  return horarios.filter((h) => !horariosIndisponiveis.has(h));
+  return horarios.filter((h) => !ocupados.has(h));
 }
 
 export function removerHorariosBloqueados(
@@ -155,45 +169,50 @@ export function removerHorariosBloqueados(
   bloqueios: Bloqueio[],
   passoMinutos: number,
 ): string[] {
-
-  const horariosBloqueados = new Set(
+  const bloqueados = new Set(
     bloqueios.flatMap(({ inicio, fim }) => {
       const inicioMin = minutosDoHorario(inicio);
       const fimMin = minutosDoHorario(fim);
       const intervalos: string[] = [];
 
-      for (let minuto = inicioMin; minuto < fimMin; minuto += passoMinutos) {
-        intervalos.push(horarioEmMinutos(minuto));
+      for (let m = inicioMin; m < fimMin; m += passoMinutos) {
+        intervalos.push(horarioEmMinutos(m));
       }
 
       return intervalos;
-    }),
+    })
   );
 
-  return horarios.filter((h) => !horariosBloqueados.has(h));
+  return horarios.filter((h) => !bloqueados.has(h));
 }
 
+//
+// ---------- INSERIR AGENDAMENTO NO SUPABASE ----------
+//
 export async function inserirAgendamento(agendamento: NovoAgendamento) {
   const { data, error } = await supabase
     .from("agendamentos")
     .insert(agendamento)
-    .select("id, cliente, telefone, servico, data, hora, barbeiro_id")
+    .select("*")
     .single();
 
-  if (error || !data) {
+  if (error) {
+    console.error("❌ Erro ao inserir agendamento:", error);
     throw new Error("Não foi possível criar o agendamento.");
   }
 
   return data;
 }
 
+//
+// ---------- ROTA: /horarios ----------
+//
 export function horariosRoute(app: Express) {
   app.get("/horarios", async (req: Request, res: Response) => {
     const parsed = horariosQuerySchema.safeParse(req.query);
 
     if (!parsed.success) {
-      res.status(400).json({ mensagem: "Parâmetros de consulta inválidos." });
-      return;
+      return res.status(400).json({ mensagem: "Parâmetros de consulta inválidos." });
     }
 
     const { data, barbeiro_id } = parsed.data;
@@ -205,22 +224,24 @@ export function horariosRoute(app: Express) {
         carregarBloqueiosDoDia(data, barbeiro_id),
       ]);
 
-      const horariosBase = gerarHorariosPossiveis(config);
-
-      const horariosLivres = removerHorariosBloqueados(
-        removerHorariosOcupados(horariosBase, agendamentos, config.duracao),
+      const base = gerarHorariosPossiveis(config);
+      const livres = removerHorariosBloqueados(
+        removerHorariosOcupados(base, agendamentos, config.duracao),
         bloqueios,
-        config.duracao,
+        config.duracao
       );
 
-      res.json({ horarios: horariosLivres });
-    } catch (erro) {
-      console.error("Erro ao carregar horários", { erro });
+      res.json({ horarios: livres });
+    } catch (error: any) {
+      console.error("Erro ao carregar horários:", error.message);
       res.status(500).json({ mensagem: "Não foi possível carregar os horários." });
     }
   });
 }
 
+//
+// ---------- ROTA: /agendar ----------
+//
 export function agendarRoute(app: Express) {
   app.use(express.json());
 
@@ -228,25 +249,41 @@ export function agendarRoute(app: Express) {
     const parsed = novoAgendamentoSchema.safeParse(req.body ?? {});
 
     if (!parsed.success) {
-      res.status(400).json({ mensagem: "Dados inválidos para agendar." });
-      return;
+      return res.status(400).json({ mensagem: "Dados inválidos para agendar." });
     }
 
+    const { data, hora, barbeiro_id } = parsed.data;
+
     try {
-      const agendamentoCriado = await inserirAgendamento(parsed.data);
+      const [config, agendamentos, bloqueios] = await Promise.all([
+        carregarConfigAgenda(barbeiro_id, data),
+        carregarAgendamentosDoDia(data, barbeiro_id),
+        carregarBloqueiosDoDia(data, barbeiro_id),
+      ]);
 
-      res.status(201).json({
-        status: "confirmado",
-        agendamento: agendamentoCriado,
-      });
+      const livres = removerHorariosBloqueados(
+        removerHorariosOcupados(gerarHorariosPossiveis(config), agendamentos, config.duracao),
+        bloqueios,
+        config.duracao
+      );
 
-    } catch (erro) {
-      console.error("Erro ao criar agendamento", { erro });
+      if (!livres.includes(hora)) {
+        return res.status(409).json({ mensagem: "Horário indisponível." });
+      }
+
+      const criado = await inserirAgendamento(parsed.data);
+
+      res.status(201).json({ status: "confirmado", agendamento: criado });
+    } catch (error: any) {
+      console.error("Erro ao criar agendamento:", error.message);
       res.status(500).json({ mensagem: "Não foi possível criar o agendamento." });
     }
   });
 }
 
+//
+// ---------- REGISTRO DAS ROTAS ----------
+//
 export function registrarRotasDeAgenda(app: Express) {
   horariosRoute(app);
   agendarRoute(app);
