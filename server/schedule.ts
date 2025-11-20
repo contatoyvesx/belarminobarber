@@ -1,6 +1,7 @@
 import express from "express";
 import type { Express, Request, Response } from "express";
 import { randomUUID } from "crypto";
+import { z } from "zod";
 
 export interface AgendaConfig {
   abre: string;
@@ -35,26 +36,51 @@ const horarioEmMinutos = (minutos: number): string => {
   return `${hora}:${minuto}`;
 };
 
-export async function carregarConfigAgenda(): Promise<AgendaConfig> {
-  return {
-    abre: "09:00",
-    fecha: "18:00",
-    duracao: 30,
+const dataSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00Z`);
+    return !Number.isNaN(date.getTime()) && value === date.toISOString().slice(0, 10);
+  });
+
+export async function carregarConfigAgenda(
+  barbeiroId: string,
+  data: string,
+): Promise<AgendaConfig> {
+  const diaDaSemana = new Date(`${data}T00:00:00Z`).getUTCDay();
+  const configsPorDia: Record<number, AgendaConfig> = {
+    0: { abre: "10:00", fecha: "14:00", duracao: 30 },
+    1: { abre: "09:00", fecha: "18:00", duracao: 30 },
+    2: { abre: "09:00", fecha: "18:00", duracao: 30 },
+    3: { abre: "09:00", fecha: "18:00", duracao: 30 },
+    4: { abre: "09:00", fecha: "18:00", duracao: 30 },
+    5: { abre: "09:00", fecha: "17:00", duracao: 30 },
+    6: { abre: "10:00", fecha: "16:00", duracao: 30 },
   };
+
+  const config = configsPorDia[diaDaSemana];
+
+  if (!config) {
+    throw new Error(`Barbeiro ${barbeiroId} sem configuração para o dia ${data}`);
+  }
+
+  return config;
 }
 
 export async function carregarAgendamentosDoDia(
   data: string,
+  barbeiroId: string,
 ): Promise<Agendamento[]> {
   return [
     {
-      id: "1",
+      id: `${barbeiroId}-manhã`,
       inicio: "11:00",
       fim: "11:30",
       data,
     },
     {
-      id: "2",
+      id: `${barbeiroId}-tarde`,
       inicio: "15:00",
       fim: "15:30",
       data,
@@ -64,10 +90,11 @@ export async function carregarAgendamentosDoDia(
 
 export async function carregarBloqueiosDoDia(
   data: string,
+  barbeiroId: string,
 ): Promise<Bloqueio[]> {
   return [
     {
-      id: "bloqueio-almoco",
+      id: `${barbeiroId}-bloqueio-almoco`,
       inicio: "12:00",
       fim: "13:00",
       data,
@@ -90,6 +117,7 @@ export function gerarHorariosPossiveis(config: AgendaConfig): string[] {
 export function removerHorariosOcupados(
   horarios: string[],
   agendamentos: Agendamento[],
+  passoMinutos: number,
 ): string[] {
   const horariosIndisponiveis = new Set(
     agendamentos.flatMap(({ inicio, fim }) => {
@@ -97,7 +125,7 @@ export function removerHorariosOcupados(
       const fimMin = minutosDoHorario(fim);
       const intervalos: string[] = [];
 
-      for (let minuto = inicioMin; minuto < fimMin; minuto += 1) {
+      for (let minuto = inicioMin; minuto < fimMin; minuto += passoMinutos) {
         intervalos.push(horarioEmMinutos(minuto));
       }
 
@@ -111,6 +139,7 @@ export function removerHorariosOcupados(
 export function removerHorariosBloqueados(
   horarios: string[],
   bloqueios: Bloqueio[],
+  passoMinutos: number,
 ): string[] {
   const horariosBloqueados = new Set(
     bloqueios.flatMap(({ inicio, fim }) => {
@@ -118,7 +147,7 @@ export function removerHorariosBloqueados(
       const fimMin = minutosDoHorario(fim);
       const intervalos: string[] = [];
 
-      for (let minuto = inicioMin; minuto < fimMin; minuto += 1) {
+      for (let minuto = inicioMin; minuto < fimMin; minuto += passoMinutos) {
         intervalos.push(horarioEmMinutos(minuto));
       }
 
@@ -131,19 +160,36 @@ export function removerHorariosBloqueados(
 
 export function horariosRoute(app: Express) {
   app.get("/horarios", async (req: Request, res: Response) => {
-    const data = (req.query.data as string) || new Date().toISOString().slice(0, 10);
+    const parsed = z
+      .object({
+        data: dataSchema,
+        barbeiro_id: z.string().uuid(),
+      })
+      .safeParse(req.query);
 
-    const config = await carregarConfigAgenda();
-    const agendamentos = await carregarAgendamentosDoDia(data);
-    const bloqueios = await carregarBloqueiosDoDia(data);
+    if (!parsed.success) {
+      res.status(400).json({ mensagem: "Parâmetros de consulta inválidos." });
+      return;
+    }
 
-    const horariosBase = gerarHorariosPossiveis(config);
-    const horariosLivres = removerHorariosBloqueados(
-      removerHorariosOcupados(horariosBase, agendamentos),
-      bloqueios,
-    );
+    const { data, barbeiro_id } = parsed.data;
 
-    res.json({ data, horarios: horariosLivres });
+    try {
+      const config = await carregarConfigAgenda(barbeiro_id, data);
+      const agendamentos = await carregarAgendamentosDoDia(data, barbeiro_id);
+      const bloqueios = await carregarBloqueiosDoDia(data, barbeiro_id);
+
+      const horariosBase = gerarHorariosPossiveis(config);
+      const horariosLivres = removerHorariosBloqueados(
+        removerHorariosOcupados(horariosBase, agendamentos, config.duracao),
+        bloqueios,
+        config.duracao,
+      );
+
+      res.json({ horarios: horariosLivres });
+    } catch (error) {
+      res.status(500).json({ mensagem: "Não foi possível carregar os horários." });
+    }
   });
 }
 
@@ -158,7 +204,7 @@ export function agendarRoute(app: Express) {
       return;
     }
 
-    const agendamentos = await carregarAgendamentosDoDia(data);
+    const agendamentos = await carregarAgendamentosDoDia(data, "padrao");
     const existente = agendamentos.some(({ inicio }) => inicio === horario);
 
     if (existente) {
