@@ -196,9 +196,11 @@ export function horariosRoute(app: Express) {
     const { data, barbeiro_id } = parsed.data;
 
     try {
-      const config = await carregarConfigAgenda(barbeiro_id, data);
-      const agendamentos = await carregarAgendamentosDoDia(data, barbeiro_id);
-      const bloqueios = await carregarBloqueiosDoDia(data, barbeiro_id);
+      const [config, agendamentos, bloqueios] = await Promise.all([
+        carregarConfigAgenda(barbeiro_id, data),
+        carregarAgendamentosDoDia(data, barbeiro_id),
+        carregarBloqueiosDoDia(data, barbeiro_id),
+      ]);
 
       const horariosBase = gerarHorariosPossiveis(config);
       const horariosLivres = removerHorariosBloqueados(
