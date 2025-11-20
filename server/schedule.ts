@@ -1,6 +1,5 @@
 import express from "express";
 import type { Express, Request, Response } from "express";
-import { randomUUID } from "crypto";
 import {
   barbeiroIdSchema,
   dataSchema,
@@ -171,17 +170,18 @@ export function removerHorariosBloqueados(
 }
 
 export async function inserirAgendamento(agendamento: NovoAgendamento) {
-  const { data, hora, cliente, telefone, servico, barbeiro_id } = agendamento;
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase
+    .from("agendamentos")
+    .insert(agendamento)
+    .select("id, cliente, telefone, servico, data, hora, barbeiro_id")
+    .single();
 
-  return {
-    id: randomUUID(),
-    data,
-    hora,
-    cliente,
-    telefone,
-    servico,
-    barbeiro_id,
-  };
+  if (error || !data) {
+    throw new Error("Não foi possível criar o agendamento.");
+  }
+
+  return data;
 }
 
 export function horariosRoute(app: Express) {
@@ -235,9 +235,11 @@ export function agendarRoute(app: Express) {
     const { data, hora, barbeiro_id } = parsed.data;
 
     try {
-      const config = await carregarConfigAgenda(barbeiro_id, data);
-      const agendamentos = await carregarAgendamentosDoDia(data, barbeiro_id);
-      const bloqueios = await carregarBloqueiosDoDia(data, barbeiro_id);
+      const [config, agendamentos, bloqueios] = await Promise.all([
+        carregarConfigAgenda(barbeiro_id, data),
+        carregarAgendamentosDoDia(data, barbeiro_id),
+        carregarBloqueiosDoDia(data, barbeiro_id),
+      ]);
 
       const horariosLivres = removerHorariosBloqueados(
         removerHorariosOcupados(gerarHorariosPossiveis(config), agendamentos, config.duracao),
