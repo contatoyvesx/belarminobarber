@@ -7,6 +7,7 @@ import {
   horariosQuerySchema,
   novoAgendamentoSchema,
 } from "./validation";
+import { supabase } from "./supabase";
 
 export interface AgendaConfig {
   abre: string;
@@ -54,7 +55,6 @@ export async function carregarConfigAgenda(
   barbeiroId: string,
   data: string,
 ): Promise<AgendaConfig> {
-  const { supabase } = await import("./supabase");
   const diaDaSemana = new Date(`${data}T00:00:00Z`).getUTCDay() || 7;
 
   const { data: config, error } = await supabase
@@ -75,8 +75,6 @@ export async function carregarAgendamentosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Agendamento[]> {
-  const { supabase } = await import("./supabase");
-
   const { data: agendamentos, error } = await supabase
     .from("agendamentos")
     .select("inicio, fim")
@@ -96,8 +94,6 @@ export async function carregarBloqueiosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Bloqueio[]> {
-  const { supabase } = await import("./supabase");
-
   const { data: bloqueios, error } = await supabase
     .from("bloqueios")
     .select("inicio, fim")
@@ -170,7 +166,6 @@ export function removerHorariosBloqueados(
 }
 
 export async function inserirAgendamento(agendamento: NovoAgendamento) {
-  const { supabase } = await import("./supabase");
   const { data, error } = await supabase
     .from("agendamentos")
     .insert(agendamento)
