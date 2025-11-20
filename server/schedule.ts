@@ -219,6 +219,11 @@ export function horariosRoute(app: Express) {
 
       res.json({ horarios: horariosLivres });
     } catch (error) {
+      console.error("Erro ao carregar horários", {
+        barbeiro_id,
+        data,
+        erro: error,
+      });
       res.status(500).json({ mensagem: "Não foi possível carregar os horários." });
     }
   });
@@ -266,6 +271,12 @@ export function agendarRoute(app: Express) {
 
       res.status(201).json({ status: "confirmado", agendamento: agendamentoCriado });
     } catch (error) {
+      console.error("Erro ao criar agendamento", {
+        barbeiro_id,
+        data,
+        hora,
+        erro: error,
+      });
       res.status(500).json({ mensagem: "Não foi possível criar o agendamento." });
     }
   });
