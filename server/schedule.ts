@@ -23,6 +23,15 @@ export interface Bloqueio {
   data: string;
 }
 
+export interface NovoAgendamento {
+  cliente: string;
+  telefone: string;
+  servico: string;
+  data: string;
+  hora: string;
+  barbeiro_id: string;
+}
+
 const minutosDoHorario = (horario: string): number => {
   const [hora, minuto] = horario.split(":").map(Number);
   return hora * 60 + minuto;
@@ -42,6 +51,14 @@ const dataSchema = z
   .refine((value) => {
     const date = new Date(`${value}T00:00:00Z`);
     return !Number.isNaN(date.getTime()) && value === date.toISOString().slice(0, 10);
+  });
+
+const horaSchema = z
+  .string()
+  .regex(/^\d{2}:\d{2}$/)
+  .refine((value) => {
+    const [hora, minuto] = value.split(":").map(Number);
+    return Number.isInteger(hora) && Number.isInteger(minuto) && hora >= 0 && hora < 24 && minuto >= 0 && minuto < 60;
   });
 
 export async function carregarConfigAgenda(
@@ -158,6 +175,20 @@ export function removerHorariosBloqueados(
   return horarios.filter((horario) => !horariosBloqueados.has(horario));
 }
 
+export async function inserirAgendamento(agendamento: NovoAgendamento) {
+  const { data, hora, cliente, telefone, servico, barbeiro_id } = agendamento;
+
+  return {
+    id: randomUUID(),
+    data,
+    hora,
+    cliente,
+    telefone,
+    servico,
+    barbeiro_id,
+  };
+}
+
 export function horariosRoute(app: Express) {
   app.get("/horarios", async (req: Request, res: Response) => {
     const parsed = z
@@ -196,25 +227,46 @@ export function horariosRoute(app: Express) {
 export function agendarRoute(app: Express) {
   app.use(express.json());
 
-  app.post("/agendamentos", async (req: Request, res: Response) => {
-    const { horario, data, cliente } = req.body ?? {};
+  app.post("/agendar", async (req: Request, res: Response) => {
+    const parsed = z
+      .object({
+        cliente: z.string().min(1),
+        telefone: z.string().min(1),
+        servico: z.string().min(1),
+        data: dataSchema,
+        hora: horaSchema,
+        barbeiro_id: z.string().uuid(),
+      })
+      .safeParse(req.body ?? {});
 
-    if (!horario || !data || !cliente) {
-      res.status(400).json({ mensagem: "Dados insuficientes para agendar." });
+    if (!parsed.success) {
+      res.status(400).json({ mensagem: "Dados inválidos para agendar." });
       return;
     }
 
-    const agendamentos = await carregarAgendamentosDoDia(data, "padrao");
-    const existente = agendamentos.some(({ inicio }) => inicio === horario);
+    const { data, hora, barbeiro_id } = parsed.data;
 
-    if (existente) {
-      res.status(409).json({ mensagem: "Horário indisponível." });
-      return;
+    try {
+      const config = await carregarConfigAgenda(barbeiro_id, data);
+      const agendamentos = await carregarAgendamentosDoDia(data, barbeiro_id);
+      const bloqueios = await carregarBloqueiosDoDia(data, barbeiro_id);
+
+      const horariosLivres = removerHorariosBloqueados(
+        removerHorariosOcupados(gerarHorariosPossiveis(config), agendamentos, config.duracao),
+        bloqueios,
+        config.duracao,
+      );
+
+      if (!horariosLivres.includes(hora)) {
+        res.status(409).json({ mensagem: "Horário indisponível." });
+        return;
+      }
+
+      const agendamentoCriado = await inserirAgendamento(parsed.data);
+
+      res.status(201).json({ status: "confirmado", agendamento: agendamentoCriado });
+    } catch (error) {
+      res.status(500).json({ mensagem: "Não foi possível criar o agendamento." });
     }
-
-    res.status(201).json({
-      mensagem: "Agendamento criado com sucesso.",
-      agendamento: { id: randomUUID(), horario, data, cliente },
-    });
   });
 }
