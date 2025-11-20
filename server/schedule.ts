@@ -55,20 +55,17 @@ export async function carregarConfigAgenda(
   barbeiroId: string,
   data: string,
 ): Promise<AgendaConfig> {
-  const diaDaSemana = new Date(`${data}T00:00:00Z`).getUTCDay();
-  const configsPorDia: Record<number, AgendaConfig> = {
-    0: { abre: "10:00", fecha: "14:00", duracao: 30 },
-    1: { abre: "09:00", fecha: "18:00", duracao: 30 },
-    2: { abre: "09:00", fecha: "18:00", duracao: 30 },
-    3: { abre: "09:00", fecha: "18:00", duracao: 30 },
-    4: { abre: "09:00", fecha: "18:00", duracao: 30 },
-    5: { abre: "09:00", fecha: "17:00", duracao: 30 },
-    6: { abre: "10:00", fecha: "16:00", duracao: 30 },
-  };
+  const { supabase } = await import("./supabase");
+  const diaDaSemana = new Date(`${data}T00:00:00Z`).getUTCDay() || 7;
 
-  const config = configsPorDia[diaDaSemana];
+  const { data: config, error } = await supabase
+    .from("agenda_config")
+    .select("abre, fecha, duracao")
+    .eq("barbeiro_id", barbeiroId)
+    .eq("dia_semana", diaDaSemana)
+    .maybeSingle();
 
-  if (!config) {
+  if (error || !config) {
     throw new Error(`Barbeiro ${barbeiroId} sem configuração para o dia ${data}`);
   }
 
@@ -79,34 +76,42 @@ export async function carregarAgendamentosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Agendamento[]> {
-  return [
-    {
-      id: `${barbeiroId}-manhã`,
-      inicio: "11:00",
-      fim: "11:30",
-      data,
-    },
-    {
-      id: `${barbeiroId}-tarde`,
-      inicio: "15:00",
-      fim: "15:30",
-      data,
-    },
-  ];
+  const { supabase } = await import("./supabase");
+
+  const { data: agendamentos, error } = await supabase
+    .from("agendamentos")
+    .select("inicio, fim")
+    .eq("data", data)
+    .eq("barbeiro_id", barbeiroId);
+
+  if (error || !agendamentos) {
+    throw new Error(
+      `Não foi possível carregar agendamentos para barbeiro ${barbeiroId} na data ${data}`,
+    );
+  }
+
+  return agendamentos;
 }
 
 export async function carregarBloqueiosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Bloqueio[]> {
-  return [
-    {
-      id: `${barbeiroId}-bloqueio-almoco`,
-      inicio: "12:00",
-      fim: "13:00",
-      data,
-    },
-  ];
+  const { supabase } = await import("./supabase");
+
+  const { data: bloqueios, error } = await supabase
+    .from("bloqueios")
+    .select("inicio, fim")
+    .eq("data", data)
+    .eq("barbeiro_id", barbeiroId);
+
+  if (error || !bloqueios) {
+    throw new Error(
+      `Não foi possível carregar bloqueios para barbeiro ${barbeiroId} na data ${data}`,
+    );
+  }
+
+  return bloqueios;
 }
 
 export function gerarHorariosPossiveis(config: AgendaConfig): string[] {
@@ -191,9 +196,11 @@ export function horariosRoute(app: Express) {
     const { data, barbeiro_id } = parsed.data;
 
     try {
-      const config = await carregarConfigAgenda(barbeiro_id, data);
-      const agendamentos = await carregarAgendamentosDoDia(data, barbeiro_id);
-      const bloqueios = await carregarBloqueiosDoDia(data, barbeiro_id);
+      const [config, agendamentos, bloqueios] = await Promise.all([
+        carregarConfigAgenda(barbeiro_id, data),
+        carregarAgendamentosDoDia(data, barbeiro_id),
+        carregarBloqueiosDoDia(data, barbeiro_id),
+      ]);
 
       const horariosBase = gerarHorariosPossiveis(config);
       const horariosLivres = removerHorariosBloqueados(
