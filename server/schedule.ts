@@ -1,7 +1,13 @@
 import express from "express";
 import type { Express, Request, Response } from "express";
 import { randomUUID } from "crypto";
-import { z } from "zod";
+import {
+  barbeiroIdSchema,
+  dataSchema,
+  horaSchema,
+  horariosQuerySchema,
+  novoAgendamentoSchema,
+} from "./validation";
 
 export interface AgendaConfig {
   abre: string;
@@ -44,22 +50,6 @@ const horarioEmMinutos = (minutos: number): string => {
   const minuto = (minutos % 60).toString().padStart(2, "0");
   return `${hora}:${minuto}`;
 };
-
-const dataSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((value) => {
-    const date = new Date(`${value}T00:00:00Z`);
-    return !Number.isNaN(date.getTime()) && value === date.toISOString().slice(0, 10);
-  });
-
-const horaSchema = z
-  .string()
-  .regex(/^\d{2}:\d{2}$/)
-  .refine((value) => {
-    const [hora, minuto] = value.split(":").map(Number);
-    return Number.isInteger(hora) && Number.isInteger(minuto) && hora >= 0 && hora < 24 && minuto >= 0 && minuto < 60;
-  });
 
 export async function carregarConfigAgenda(
   barbeiroId: string,
@@ -191,12 +181,7 @@ export async function inserirAgendamento(agendamento: NovoAgendamento) {
 
 export function horariosRoute(app: Express) {
   app.get("/horarios", async (req: Request, res: Response) => {
-    const parsed = z
-      .object({
-        data: dataSchema,
-        barbeiro_id: z.string().uuid(),
-      })
-      .safeParse(req.query);
+    const parsed = horariosQuerySchema.safeParse(req.query);
 
     if (!parsed.success) {
       res.status(400).json({ mensagem: "Parâmetros de consulta inválidos." });
@@ -233,16 +218,7 @@ export function agendarRoute(app: Express) {
   app.use(express.json());
 
   app.post("/agendar", async (req: Request, res: Response) => {
-    const parsed = z
-      .object({
-        cliente: z.string().min(1),
-        telefone: z.string().min(1),
-        servico: z.string().min(1),
-        data: dataSchema,
-        hora: horaSchema,
-        barbeiro_id: z.string().uuid(),
-      })
-      .safeParse(req.body ?? {});
+    const parsed = novoAgendamentoSchema.safeParse(req.body ?? {});
 
     if (!parsed.success) {
       res.status(400).json({ mensagem: "Dados inválidos para agendar." });
