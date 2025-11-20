@@ -270,3 +270,8 @@ export function agendarRoute(app: Express) {
     }
   });
 }
+
+export function registrarRotasDeAgenda(app: Express) {
+  horariosRoute(app);
+  agendarRoute(app);
+}
