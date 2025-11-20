@@ -1,9 +1,6 @@
 import express from "express";
 import type { Express, Request, Response } from "express";
 import {
-  barbeiroIdSchema,
-  dataSchema,
-  horaSchema,
   horariosQuerySchema,
   novoAgendamentoSchema,
 } from "./validation";
@@ -44,18 +41,23 @@ const minutosDoHorario = (horario: string): number => {
 };
 
 const horarioEmMinutos = (minutos: number): string => {
-  const hora = Math.floor(minutos / 60)
-    .toString()
-    .padStart(2, "0");
+  const hora = Math.floor(minutos / 60).toString().padStart(2, "0");
   const minuto = (minutos % 60).toString().padStart(2, "0");
   return `${hora}:${minuto}`;
 };
 
+/**
+ * CORREÇÃO AQUI ❗
+ * Agora o dia da semana segue padrão:
+ * Segunda = 1 ... Sábado = 6 (igual sua tabela)
+ */
 export async function carregarConfigAgenda(
   barbeiroId: string,
   data: string,
 ): Promise<AgendaConfig> {
-  const diaDaSemana = new Date(`${data}T00:00:00Z`).getUTCDay() || 7;
+
+  const diaJS = new Date(data).getDay(); // 0 = domingo
+  const diaDaSemana = diaJS === 0 ? 7 : diaJS; // domingo vira 7, segunda=1, terça=2 ...
 
   const { data: config, error } = await supabase
     .from("agenda_config")
@@ -65,7 +67,9 @@ export async function carregarConfigAgenda(
     .maybeSingle();
 
   if (error || !config) {
-    throw new Error(`Barbeiro ${barbeiroId} sem configuração para o dia ${data}`);
+    throw new Error(
+      `Nenhuma configuração encontrada para barbeiro ${barbeiroId} em ${data} (dia ${diaDaSemana})`
+    );
   }
 
   return config;
@@ -75,15 +79,16 @@ export async function carregarAgendamentosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Agendamento[]> {
+
   const { data: agendamentos, error } = await supabase
     .from("agendamentos")
-    .select("inicio, fim")
+    .select("id, inicio, fim, data")
     .eq("data", data)
     .eq("barbeiro_id", barbeiroId);
 
   if (error || !agendamentos) {
     throw new Error(
-      `Não foi possível carregar agendamentos para barbeiro ${barbeiroId} na data ${data}`,
+      `Erro ao buscar agendamentos do barbeiro ${barbeiroId} no dia ${data}`
     );
   }
 
@@ -94,15 +99,16 @@ export async function carregarBloqueiosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Bloqueio[]> {
+
   const { data: bloqueios, error } = await supabase
     .from("bloqueios")
-    .select("inicio, fim")
+    .select("id, inicio, fim, data")
     .eq("data", data)
     .eq("barbeiro_id", barbeiroId);
 
   if (error || !bloqueios) {
     throw new Error(
-      `Não foi possível carregar bloqueios para barbeiro ${barbeiroId} na data ${data}`,
+      `Erro ao buscar bloqueios do barbeiro ${barbeiroId} no dia ${data}`
     );
   }
 
@@ -126,6 +132,7 @@ export function removerHorariosOcupados(
   agendamentos: Agendamento[],
   passoMinutos: number,
 ): string[] {
+
   const horariosIndisponiveis = new Set(
     agendamentos.flatMap(({ inicio, fim }) => {
       const inicioMin = minutosDoHorario(inicio);
@@ -140,7 +147,7 @@ export function removerHorariosOcupados(
     }),
   );
 
-  return horarios.filter((horario) => !horariosIndisponiveis.has(horario));
+  return horarios.filter((h) => !horariosIndisponiveis.has(h));
 }
 
 export function removerHorariosBloqueados(
@@ -148,6 +155,7 @@ export function removerHorariosBloqueados(
   bloqueios: Bloqueio[],
   passoMinutos: number,
 ): string[] {
+
   const horariosBloqueados = new Set(
     bloqueios.flatMap(({ inicio, fim }) => {
       const inicioMin = minutosDoHorario(inicio);
@@ -162,7 +170,7 @@ export function removerHorariosBloqueados(
     }),
   );
 
-  return horarios.filter((horario) => !horariosBloqueados.has(horario));
+  return horarios.filter((h) => !horariosBloqueados.has(h));
 }
 
 export async function inserirAgendamento(agendamento: NovoAgendamento) {
@@ -198,6 +206,7 @@ export function horariosRoute(app: Express) {
       ]);
 
       const horariosBase = gerarHorariosPossiveis(config);
+
       const horariosLivres = removerHorariosBloqueados(
         removerHorariosOcupados(horariosBase, agendamentos, config.duracao),
         bloqueios,
@@ -205,12 +214,8 @@ export function horariosRoute(app: Express) {
       );
 
       res.json({ horarios: horariosLivres });
-    } catch (error) {
-      console.error("Erro ao carregar horários", {
-        barbeiro_id,
-        data,
-        erro: error,
-      });
+    } catch (erro) {
+      console.error("Erro ao carregar horários", { erro });
       res.status(500).json({ mensagem: "Não foi possível carregar os horários." });
     }
   });
@@ -227,36 +232,16 @@ export function agendarRoute(app: Express) {
       return;
     }
 
-    const { data, hora, barbeiro_id } = parsed.data;
-
     try {
-      const [config, agendamentos, bloqueios] = await Promise.all([
-        carregarConfigAgenda(barbeiro_id, data),
-        carregarAgendamentosDoDia(data, barbeiro_id),
-        carregarBloqueiosDoDia(data, barbeiro_id),
-      ]);
-
-      const horariosLivres = removerHorariosBloqueados(
-        removerHorariosOcupados(gerarHorariosPossiveis(config), agendamentos, config.duracao),
-        bloqueios,
-        config.duracao,
-      );
-
-      if (!horariosLivres.includes(hora)) {
-        res.status(409).json({ mensagem: "Horário indisponível." });
-        return;
-      }
-
       const agendamentoCriado = await inserirAgendamento(parsed.data);
 
-      res.status(201).json({ status: "confirmado", agendamento: agendamentoCriado });
-    } catch (error) {
-      console.error("Erro ao criar agendamento", {
-        barbeiro_id,
-        data,
-        hora,
-        erro: error,
+      res.status(201).json({
+        status: "confirmado",
+        agendamento: agendamentoCriado,
       });
+
+    } catch (erro) {
+      console.error("Erro ao criar agendamento", { erro });
       res.status(500).json({ mensagem: "Não foi possível criar o agendamento." });
     }
   });
