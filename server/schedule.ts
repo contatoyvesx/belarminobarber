@@ -97,14 +97,21 @@ export async function carregarBloqueiosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Bloqueio[]> {
-  return [
-    {
-      id: `${barbeiroId}-bloqueio-almoco`,
-      inicio: "12:00",
-      fim: "13:00",
-      data,
-    },
-  ];
+  const { supabase } = await import("./supabase");
+
+  const { data: bloqueios, error } = await supabase
+    .from("bloqueios")
+    .select("inicio, fim")
+    .eq("data", data)
+    .eq("barbeiro_id", barbeiroId);
+
+  if (error || !bloqueios) {
+    throw new Error(
+      `Não foi possível carregar bloqueios para barbeiro ${barbeiroId} na data ${data}`,
+    );
+  }
+
+  return bloqueios;
 }
 
 export function gerarHorariosPossiveis(config: AgendaConfig): string[] {
