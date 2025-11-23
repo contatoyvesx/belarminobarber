@@ -12,9 +12,15 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // 🔥 ROTA DE HEALTHCHECK (IMPORTANTE: antes de tudo!)
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  // 🔥 ROTAS DO SEU BACKEND REAL
   registrarRotasDeAgenda(app);
 
-  // Serve static files from dist/public in production
+  // 🔥 STATIC + FRONTEND SPA
   const staticPath =
     process.env.NODE_ENV === "production"
       ? path.resolve(__dirname, "public")
@@ -22,7 +28,7 @@ async function startServer() {
 
   app.use(express.static(staticPath));
 
-  // Handle client-side routing - serve index.html for all routes
+  // 🔥 SPA fallback – sempre por ÚLTIMO
   app.get("*", (_req, res) => {
     res.sendFile(path.join(staticPath, "index.html"));
   });
