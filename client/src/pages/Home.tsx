@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, FormEvent, useMemo } from 'react';
+import { Link } from 'wouter';
 
 export default function Home() {
   const [scrollY, setScrollY] = useState(0);
@@ -259,6 +260,14 @@ export default function Home() {
             <li><a href="#servicos" className="text-[#E8C8A3] hover:text-[#D9A66A] hover:animate-color-shift transition">Serviços</a></li>
             <li><a href="#portfolio" className="text-[#E8C8A3] hover:text-[#D9A66A] hover:animate-color-shift transition">Portfolio</a></li>
             <li><a href="#contato" className="text-[#E8C8A3] hover:text-[#D9A66A] hover:animate-color-shift transition">Contato</a></li>
+            <li>
+              <Link
+                href="/agendar"
+                className="text-[#E8C8A3] hover:text-[#D9A66A] hover:animate-color-shift transition"
+              >
+                Agendar
+              </Link>
+            </li>
           </ul>
           
           {/* Mobile Menu Button */}
@@ -288,13 +297,20 @@ export default function Home() {
               >
                 Portfolio
               </a>
-              <a 
-                href="#contato" 
+              <a
+                href="#contato"
                 onClick={handleMobileMenuClose}
                 className="block text-[#E8C8A3] hover:text-[#D9A66A] hover:animate-color-shift transition py-2 font-semibold uppercase tracking-wider"
               >
                 Contato
               </a>
+              <Link
+                href="/agendar"
+                onClick={handleMobileMenuClose}
+                className="block text-[#E8C8A3] hover:text-[#D9A66A] hover:animate-color-shift transition py-2 font-semibold uppercase tracking-wider"
+              >
+                Agendar
+              </Link>
               <button
                 onClick={handleAgendarClick}
                 className="w-full btn-retro cursor-pointer hover-lift transition-all-500 animate-pulse-scale mt-4"
