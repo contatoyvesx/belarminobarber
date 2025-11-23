@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 
 export default function Agendar() {
   const [dataSelecionada, setDataSelecionada] = useState<Date | undefined>();
+  const [dataPickerAberto, setDataPickerAberto] = useState(false);
   const [horarios, setHorarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedHora, setSelectedHora] = useState("");
@@ -152,7 +153,12 @@ export default function Agendar() {
         {/* Data */}
         <div className="space-y-2">
           <label className="block text-[#D9A66A]">Data</label>
-          <Popover>
+          <Popover
+            open={dataPickerAberto}
+            onOpenChange={(aberto) => {
+              setDataPickerAberto(aberto);
+            }}
+          >
             <PopoverTrigger asChild>
               <Button
                 variant="outline"
@@ -177,6 +183,7 @@ export default function Agendar() {
                   setMensagemErro("");
                   setHorarios([]);
                   setSelectedHora("");
+                  setDataPickerAberto(false);
                 }}
                 initialFocus
                 className="p-3"
