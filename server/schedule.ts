@@ -54,22 +54,24 @@ const horarioEmMinutos = (minutos: number): string => {
 //
 // ---------- CONFIGURAÇÃO DO DIA ----------
 //
-
 export async function carregarConfigAgenda(
   barbeiroId: string,
   data: string,
 ): Promise<AgendaConfig> {
-  const diaJS = new Date(data).getDay(); // 0 domingo
-  const diaDaSemana = diaJS === 0 ? 7 : diaJS; // domingo vira 7 (SQL compatível)
+  
+  // CORREÇÃO AQUI — agora domingo = 0 (compatível com Supabase)
+  const diaDaSemana = new Date(data).getDay();
 
-  console.log("📆 Buscando config:", { barbeiroId, data, diaJS, diaDaSemana });
+  console.log("📆 Buscando config agenda:", { barbeiroId, data, diaDaSemana });
 
   const { data: config, error } = await supabase
     .from("agenda_config")
     .select("abre, fecha, duracao")
     .eq("barbeiro_id", barbeiroId)
-    .in("dia_semana", [diaDaSemana, String(diaDaSemana)]) // compatível com TEXT ou INT
+    .eq("dia_semana", diaDaSemana)
     .maybeSingle();
+
+  console.log("🔍 Resultado config:", { config, error });
 
   if (error) {
     console.error("❌ Erro SQL config:", error);
@@ -78,7 +80,7 @@ export async function carregarConfigAgenda(
 
   if (!config) {
     throw new Error(
-      `Nenhuma configuração encontrada para barbeiro ${barbeiroId} no dia ${data} (dia ${diaDaSemana})`
+      `Nenhuma configuração encontrada para barbeiro ${barbeiroId} no dia ${data} (dia_semana=${diaDaSemana})`
     );
   }
 
@@ -92,11 +94,16 @@ export async function carregarAgendamentosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Agendamento[]> {
+
+  console.log("📆 Buscando agendamentos:", { data, barbeiroId });
+
   const { data: agendamentos, error } = await supabase
     .from("agendamentos")
     .select("inicio, fim")
     .eq("data", data)
     .eq("barbeiro_id", barbeiroId);
+
+  console.log("🔍 Resultado agendamentos:", { agendamentos, error });
 
   if (error) {
     console.error("❌ Erro SQL agendamentos:", error);
@@ -113,11 +120,16 @@ export async function carregarBloqueiosDoDia(
   data: string,
   barbeiroId: string,
 ): Promise<Bloqueio[]> {
+
+  console.log("📆 Buscando bloqueios:", { data, barbeiroId });
+
   const { data: bloqueios, error } = await supabase
     .from("bloqueios")
     .select("inicio, fim")
     .eq("data", data)
     .eq("barbeiro_id", barbeiroId);
+
+  console.log("🔍 Resultado bloqueios:", { bloqueios, error });
 
   if (error) {
     console.error("❌ Erro SQL bloqueios:", error);
@@ -187,7 +199,7 @@ export function removerHorariosBloqueados(
 }
 
 //
-// ---------- INSERIR AGENDAMENTO NO SUPABASE ----------
+// ---------- INSERIR AGENDAMENTO ----------
 //
 export async function inserirAgendamento(agendamento: NovoAgendamento) {
   const { data, error } = await supabase
@@ -282,7 +294,7 @@ export function agendarRoute(app: Express) {
 }
 
 //
-// ---------- REGISTRO DAS ROTAS ----------
+// ---------- REGISTRO GERAL ----------
 //
 export function registrarRotasDeAgenda(app: Express) {
   horariosRoute(app);
