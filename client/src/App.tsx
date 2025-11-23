@@ -5,6 +5,9 @@ import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
+import Agendar from "./pages/Agendar";
+
+<Route path="/agendar" element={<Agendar />} />
 
 function Router() {
   return (
