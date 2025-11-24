@@ -224,6 +224,46 @@
     box-shadow: 6px 6px 0 rgba(217, 166, 106, 0.3);
   }
 
+/* ===== FIX PARA O CALENDAR DO RADIX + SHADCN ===== */
+
+.rdp {
+  margin: 0;
+}
+
+.rdp-months {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.rdp-table {
+  border-collapse: collapse;
+  margin: 0 auto;
+}
+
+.rdp-cell {
+  padding: 4px;
+}
+
+.rdp-button {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.rdp-button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.rdp-day_selected,
+.rdp-day_selected:hover {
+  background: #d9a66a;
+  color: #140000 !important;
+}
+
+    
     /* ===== SHADCN CALENDAR (OBRIGATÓRIO) ===== */
 .rdp {
   margin: 0;
