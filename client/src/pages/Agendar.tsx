@@ -19,11 +19,12 @@ export default function Agendar() {
   const [selectedHora, setSelectedHora] = useState("");
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [servicosSelecionados, setServicosSelecionados] = useState<string[]>([]);
+  const [servicosSelecionados, setServicosSelecionados] = useState<string[]>(
+    []
+  );
   const [mensagemErro, setMensagemErro] = useState("");
 
-  const BARBEIRO_ID = "be3c5248-746f-44ed-8b3c-73ca71a40703"; // <-- o certo
-
+  const BARBEIRO_ID = "be3c5248-746f-44ed-8b3c-73ca71a40703";
   const API_URL = "https://api-belarmino.yvesx.com.br";
 
   const servicos = useMemo(
@@ -43,9 +44,9 @@ export default function Agendar() {
       if (prev.includes(servico)) {
         return prev.filter((item) => item !== servico);
       }
-
       return [...prev, servico];
     });
+
     setMensagemErro("");
   };
 
@@ -145,7 +146,6 @@ export default function Agendar() {
   return (
     <div className="min-h-screen bg-[#140000] text-white p-4">
       <div className="max-w-xl mx-auto space-y-6">
-
         <h1 className="text-4xl font-bold text-center text-[#D9A66A]">
           Agendar Horário
         </h1>
@@ -153,16 +153,12 @@ export default function Agendar() {
         {/* Data */}
         <div className="space-y-2">
           <label className="block text-[#D9A66A]">Data</label>
-          <Popover
-            open={dataPickerAberto}
-            onOpenChange={(aberto) => {
-              setDataPickerAberto(aberto);
-            }}
-          >
+
+          <Popover open={dataPickerAberto} onOpenChange={setDataPickerAberto}>
             <PopoverTrigger asChild>
               <Button
                 type="button"
-                onClick={() => setDataPickerAberto((prev) => !prev)}
+                onClick={() => setDataPickerAberto(true)}
                 variant="outline"
                 className={cn(
                   "w-full justify-start rounded border border-[#6e2317] bg-[#1b0402] text-left font-normal text-[#E8C8A3] hover:bg-[#240603]",
@@ -173,6 +169,7 @@ export default function Agendar() {
                 {dataFormatadaDisplay}
               </Button>
             </PopoverTrigger>
+
             <PopoverContent
               align="start"
               className="p-0 border border-[#6e2317] bg-[#1b0402] text-white"
@@ -227,6 +224,7 @@ export default function Agendar() {
         {/* Serviços */}
         <div className="space-y-3">
           <p className="text-[#D9A66A] font-semibold">Serviços</p>
+
           <div className="grid gap-3 sm:grid-cols-2">
             {servicos.map((servico) => {
               const selecionado = servicosSelecionados.includes(servico);
