@@ -161,6 +161,8 @@ export default function Agendar() {
           >
             <PopoverTrigger asChild>
               <Button
+                type="button"
+                onClick={() => setDataPickerAberto((prev) => !prev)}
                 variant="outline"
                 className={cn(
                   "w-full justify-start rounded border border-[#6e2317] bg-[#1b0402] text-left font-normal text-[#E8C8A3] hover:bg-[#240603]",
