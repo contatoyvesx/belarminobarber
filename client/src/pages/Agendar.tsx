@@ -1,31 +1,85 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Calendar as CalendarIcon } from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 export default function Agendar() {
-  const [data, setData] = useState("");
+  const [dataSelecionada, setDataSelecionada] = useState<Date | undefined>();
+  const [dataPickerAberto, setDataPickerAberto] = useState(false);
   const [horarios, setHorarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedHora, setSelectedHora] = useState("");
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [servico, setServico] = useState("");
+  const [servicosSelecionados, setServicosSelecionados] = useState<string[]>([]);
   const [mensagemErro, setMensagemErro] = useState("");
 
   const BARBEIRO_ID = "be3c5248-746f-44ed-8b3c-73ca71a40703"; // <-- o certo
 
   const API_URL = "https://api-belarmino.yvesx.com.br";
 
+  const servicos = useMemo(
+    () => [
+      "Corte de cabelo",
+      "Barba",
+      "Sobrancelha",
+      "Hidratação capilar",
+      "Limpeza de pele / black mask",
+      "Camuflagem de fios brancos",
+    ],
+    []
+  );
+
+  const toggleServico = (servico: string) => {
+    setServicosSelecionados((prev) => {
+      if (prev.includes(servico)) {
+        return prev.filter((item) => item !== servico);
+      }
+
+      return [...prev, servico];
+    });
+    setMensagemErro("");
+  };
+
+  const dataFormatadaApi = useMemo(() => {
+    if (!dataSelecionada) return "";
+    return dataSelecionada.toLocaleDateString("sv-SE");
+  }, [dataSelecionada]);
+
+  const dataFormatadaDisplay = useMemo(() => {
+    if (!dataSelecionada) return "Selecione a data";
+
+    return dataSelecionada.toLocaleDateString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  }, [dataSelecionada]);
+
+  const servicosFormatados = servicosSelecionados.join(", ");
+
   async function buscarHorarios() {
-    if (!data) {
+    if (!dataSelecionada) {
       setMensagemErro("Selecione uma data.");
       return;
     }
 
     setLoading(true);
     setMensagemErro("");
+    setSelectedHora("");
+    setHorarios([]);
 
     try {
       const res = await fetch(
-        `${API_URL}/horarios?data=${data}&barbeiro_id=${BARBEIRO_ID}`
+        `${API_URL}/horarios?data=${dataFormatadaApi}&barbeiro_id=${BARBEIRO_ID}`
       );
       const json = await res.json();
 
@@ -34,7 +88,7 @@ export default function Agendar() {
       } else {
         setHorarios([]);
       }
-    } catch (e) {
+    } catch {
       setMensagemErro("Erro ao buscar horários.");
     }
 
@@ -42,7 +96,13 @@ export default function Agendar() {
   }
 
   async function confirmarAgendamento() {
-    if (!cliente || !telefone || !servico || !selectedHora) {
+    if (
+      !cliente ||
+      !telefone ||
+      !dataSelecionada ||
+      !servicosSelecionados.length ||
+      !selectedHora
+    ) {
       setMensagemErro("Preencha todos os campos.");
       return;
     }
@@ -52,8 +112,8 @@ export default function Agendar() {
     const payload = {
       cliente,
       telefone,
-      servico,
-      data,
+      servico: servicosFormatados,
+      data: dataFormatadaApi,
       hora: selectedHora,
       barbeiro_id: BARBEIRO_ID,
     };
@@ -68,7 +128,7 @@ export default function Agendar() {
       const json = await res.json();
 
       if (json.status === "confirmado") {
-        const resumo = `Novo agendamento confirmado:\n\n🧔 Cliente: ${cliente}\n📅 Data: ${data}\n⏰ Hora: ${selectedHora}\n💈 Serviço: ${servico}`;
+        const resumo = `Novo agendamento confirmado:\n\n🧔 Cliente: ${cliente}\n📅 Data: ${dataFormatadaDisplay}\n⏰ Hora: ${selectedHora}\n💈 Serviço: ${servicosFormatados}`;
 
         window.open(
           `https://wa.me/5511952861321?text=${encodeURIComponent(resumo)}`,
@@ -91,14 +151,47 @@ export default function Agendar() {
         </h1>
 
         {/* Data */}
-        <div>
-          <label className="block mb-2 text-[#D9A66A]">Data</label>
-          <input
-            type="date"
-            value={data}
-            onChange={(e) => setData(e.target.value)}
-            className="w-full p-3 rounded bg-[#1b0402] border border-[#6e2317]"
-          />
+        <div className="space-y-2">
+          <label className="block text-[#D9A66A]">Data</label>
+          <Popover
+            open={dataPickerAberto}
+            onOpenChange={(aberto) => {
+              setDataPickerAberto(aberto);
+            }}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                onClick={() => setDataPickerAberto((prev) => !prev)}
+                variant="outline"
+                className={cn(
+                  "w-full justify-start rounded border border-[#6e2317] bg-[#1b0402] text-left font-normal text-[#E8C8A3] hover:bg-[#240603]",
+                  !dataSelecionada && "text-[#E8C8A3]/70"
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4 text-[#D9A66A]" />
+                {dataFormatadaDisplay}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent
+              align="start"
+              className="p-0 border border-[#6e2317] bg-[#1b0402] text-white"
+            >
+              <Calendar
+                mode="single"
+                selected={dataSelecionada}
+                onSelect={(date) => {
+                  setDataSelecionada(date ?? undefined);
+                  setMensagemErro("");
+                  setHorarios([]);
+                  setSelectedHora("");
+                  setDataPickerAberto(false);
+                }}
+                initialFocus
+                className="p-3"
+              />
+            </PopoverContent>
+          </Popover>
         </div>
 
         {/* Buscar horários */}
@@ -131,6 +224,35 @@ export default function Agendar() {
           </div>
         )}
 
+        {/* Serviços */}
+        <div className="space-y-3">
+          <p className="text-[#D9A66A] font-semibold">Serviços</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {servicos.map((servico) => {
+              const selecionado = servicosSelecionados.includes(servico);
+
+              return (
+                <label
+                  key={servico}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg border p-3 transition",
+                    selecionado
+                      ? "border-[#D9A66A] bg-[#26100d]"
+                      : "border-[#6e2317] bg-[#1b0402]"
+                  )}
+                >
+                  <Checkbox
+                    checked={selecionado}
+                    onCheckedChange={() => toggleServico(servico)}
+                    className="border-[#6e2317] data-[state=checked]:border-[#D9A66A] data-[state=checked]:bg-[#D9A66A]"
+                  />
+                  <span className="text-[#E8C8A3]">{servico}</span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         {/* Dados do cliente */}
         <div className="space-y-4">
           <input
@@ -146,14 +268,6 @@ export default function Agendar() {
             placeholder="Telefone"
             value={telefone}
             onChange={(e) => setTelefone(e.target.value)}
-            className="w-full p-3 rounded bg-[#1b0402] border border-[#6e2317]"
-          />
-
-          <input
-            type="text"
-            placeholder="Serviço desejado"
-            value={servico}
-            onChange={(e) => setServico(e.target.value)}
             className="w-full p-3 rounded bg-[#1b0402] border border-[#6e2317]"
           />
         </div>
