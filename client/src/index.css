@@ -224,6 +224,49 @@
     box-shadow: 6px 6px 0 rgba(217, 166, 106, 0.3);
   }
 
+    /* ===== SHADCN CALENDAR (OBRIGATÓRIO) ===== */
+.rdp {
+  margin: 0;
+}
+
+.rdp-months {
+  display: flex;
+  gap: 1rem;
+}
+
+.rdp-caption {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem 0;
+}
+
+.rdp-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.rdp-cell {
+  padding: 0.25rem;
+}
+
+.rdp-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.5rem;
+}
+
+.rdp-button:hover {
+  background: #6e2317;
+}
+
+.rdp-day_selected {
+  background: #D9A66A !important;
+  color: #140000 !important;
+}
+
+    className="p-0 border border-[#6e2317] bg-[#1b0402] text-white z-[99999]"
+
+
   /* Gold accent text */
   .text-gold {
     @apply text-[#D9A66A];
