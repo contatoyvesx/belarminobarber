@@ -9,6 +9,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+
 import { cn } from "@/lib/utils";
 
 export default function Agendar() {
@@ -19,9 +20,7 @@ export default function Agendar() {
   const [selectedHora, setSelectedHora] = useState("");
   const [cliente, setCliente] = useState("");
   const [telefone, setTelefone] = useState("");
-  const [servicosSelecionados, setServicosSelecionados] = useState<string[]>(
-    []
-  );
+  const [servicosSelecionados, setServicosSelecionados] = useState<string[]>([]);
   const [mensagemErro, setMensagemErro] = useState("");
 
   const BARBEIRO_ID = "be3c5248-746f-44ed-8b3c-73ca71a40703";
@@ -46,7 +45,6 @@ export default function Agendar() {
       }
       return [...prev, servico];
     });
-
     setMensagemErro("");
   };
 
@@ -146,6 +144,7 @@ export default function Agendar() {
   return (
     <div className="min-h-screen bg-[#140000] text-white p-4">
       <div className="max-w-xl mx-auto space-y-6">
+
         <h1 className="text-4xl font-bold text-center text-[#D9A66A]">
           Agendar Horário
         </h1>
@@ -154,11 +153,14 @@ export default function Agendar() {
         <div className="space-y-2">
           <label className="block text-[#D9A66A]">Data</label>
 
-          <Popover open={dataPickerAberto} onOpenChange={setDataPickerAberto}>
-            <PopoverTrigger asChild>
+          <Popover
+            open={dataPickerAberto}
+            onOpenChange={setDataPickerAberto}
+          >
+            <PopoverTrigger asChild className="z-[99999]">
               <Button
                 type="button"
-                onClick={() => setDataPickerAberto(true)}
+                onClick={() => setDataPickerAberto((prev) => !prev)}
                 variant="outline"
                 className={cn(
                   "w-full justify-start rounded border border-[#6e2317] bg-[#1b0402] text-left font-normal text-[#E8C8A3] hover:bg-[#240603]",
@@ -172,7 +174,7 @@ export default function Agendar() {
 
             <PopoverContent
               align="start"
-              className="p-0 border border-[#6e2317] bg-[#1b0402] text-white"
+              className="p-0 border border-[#6e2317] bg-[#1b0402] text-white z-[99999]"
             >
               <Calendar
                 mode="single"
@@ -224,7 +226,6 @@ export default function Agendar() {
         {/* Serviços */}
         <div className="space-y-3">
           <p className="text-[#D9A66A] font-semibold">Serviços</p>
-
           <div className="grid gap-3 sm:grid-cols-2">
             {servicos.map((servico) => {
               const selecionado = servicosSelecionados.includes(servico);
