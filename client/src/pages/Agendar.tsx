@@ -1,20 +1,11 @@
 import { useMemo, useState } from "react";
-import { Calendar as CalendarIcon } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 import { cn } from "@/lib/utils";
 
 export default function Agendar() {
-  const [dataSelecionada, setDataSelecionada] = useState<Date | undefined>();
-  const [dataPickerAberto, setDataPickerAberto] = useState(false);
+  const [dataSelecionada, setDataSelecionada] = useState("");
   const [horarios, setHorarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedHora, setSelectedHora] = useState("");
@@ -50,17 +41,20 @@ export default function Agendar() {
 
   const dataFormatadaApi = useMemo(() => {
     if (!dataSelecionada) return "";
-    return dataSelecionada.toLocaleDateString("sv-SE");
+    return dataSelecionada;
   }, [dataSelecionada]);
 
   const dataFormatadaDisplay = useMemo(() => {
     if (!dataSelecionada) return "Selecione a data";
 
-    return dataSelecionada.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "2-digit",
-      year: "numeric",
-    });
+    return new Date(`${dataSelecionada}T00:00:00`).toLocaleDateString(
+      "pt-BR",
+      {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }
+    );
   }, [dataSelecionada]);
 
   const servicosFormatados = servicosSelecionados.join(", ");
@@ -152,45 +146,22 @@ export default function Agendar() {
         {/* Data */}
         <div className="space-y-2">
           <label className="block text-[#D9A66A]">Data</label>
-
-          <Popover
-            open={dataPickerAberto}
-            onOpenChange={setDataPickerAberto}
-          >
-            <PopoverTrigger asChild className="z-[99999]">
-              <Button
-                type="button"
-                onClick={() => setDataPickerAberto((prev) => !prev)}
-                variant="outline"
-                className={cn(
-                  "w-full justify-start rounded border border-[#6e2317] bg-[#1b0402] text-left font-normal text-[#E8C8A3] hover:bg-[#240603]",
-                  !dataSelecionada && "text-[#E8C8A3]/70"
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4 text-[#D9A66A]" />
-                {dataFormatadaDisplay}
-              </Button>
-            </PopoverTrigger>
-
-            <PopoverContent
-              align="start"
-              className="p-0 border border-[#6e2317] bg-[#1b0402] text-white z-[99999]"
-            >
-              <Calendar
-                mode="single"
-                selected={dataSelecionada}
-                onSelect={(date) => {
-                  setDataSelecionada(date ?? undefined);
-                  setMensagemErro("");
-                  setHorarios([]);
-                  setSelectedHora("");
-                  setDataPickerAberto(false);
-                }}
-                initialFocus
-                className="p-3"
-              />
-            </PopoverContent>
-          </Popover>
+          <input
+            type="date"
+            value={dataSelecionada}
+            onChange={(e) => {
+              setDataSelecionada(e.target.value);
+              setMensagemErro("");
+              setHorarios([]);
+              setSelectedHora("");
+            }}
+            className={cn(
+              "w-full rounded border border-[#6e2317] bg-[#1b0402] px-3 py-3 text-[#E8C8A3]",
+              !dataSelecionada && "text-[#E8C8A3]/70"
+            )}
+            placeholder="Selecione a data"
+          />
+          <div className="text-sm text-[#E8C8A3]">{dataFormatadaDisplay}</div>
         </div>
 
         {/* Buscar horários */}
