@@ -25,7 +25,7 @@ const parseDateString = (value: string) => {
 };
 
 export default function Agendar() {
-  const [dataSelecionada, setDataSelecionada] = useState("");
+  const [dataSelecionada, setDataSelecionada] = useState(() => new Date().setHours(0, 0, 0, 0));
   const [horarios, setHorarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedHora, setSelectedHora] = useState("");
@@ -164,7 +164,7 @@ export default function Agendar() {
         </h1>
 
         {/* Data */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="block text-[#D9A66A]">Data</label>
           <input
             type="date"

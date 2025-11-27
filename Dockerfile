@@ -7,10 +7,13 @@ WORKDIR /app
 RUN corepack enable
 
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 COPY . .
 RUN pnpm run build
+
+# Remove devDependencies para a imagem final
+RUN pnpm prune --prod
 
 # ---------------------------
 # 2) Runner (Node + Express)
@@ -19,14 +22,11 @@ FROM node:20-alpine AS runner
 WORKDIR /app
 
 RUN corepack enable
+ENV NODE_ENV=production
 
-# Copia node_modules sem devDependencies
+# Copia apenas o necessário para executar em produção
 COPY --from=builder /app/node_modules ./node_modules
-
-# Copia todo o dist gerado (backend + frontend)
 COPY --from=builder /app/dist ./dist
-
-# Copia arquivos necessários (caso seu server use env, public, etc)
 COPY package.json ./
 
 EXPOSE 3000
