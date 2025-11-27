@@ -4,6 +4,26 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 import { cn } from "@/lib/utils";
 
+const formatDatePtBr = (date: Date) =>
+  date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+const formatDateInput = (date: Date) => {
+  const ano = date.getFullYear();
+  const mes = String(date.getMonth() + 1).padStart(2, "0");
+  const dia = String(date.getDate()).padStart(2, "0");
+
+  return `${ano}-${mes}-${dia}`;
+};
+
+const parseDateString = (value: string) => {
+  const [ano, mes, dia] = value.split("-").map(Number);
+  return new Date(ano, (mes || 1) - 1, dia || 1, 0, 0, 0, 0);
+};
+
 export default function Agendar() {
   const [dataSelecionada, setDataSelecionada] = useState("");
   const [horarios, setHorarios] = useState<string[]>([]);
@@ -39,28 +59,21 @@ export default function Agendar() {
     setMensagemErro("");
   };
 
-  const dataMinima = useMemo(
-    () => new Date().toISOString().split("T")[0],
-    []
-  );
+  const dataMinima = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return formatDateInput(hoje);
+  }, []);
 
   const dataFormatadaApi = useMemo(() => {
     if (!dataSelecionada) return "";
-    return dataSelecionada;
+    return formatDatePtBr(parseDateString(dataSelecionada));
   }, [dataSelecionada]);
 
   const dataFormatadaDisplay = useMemo(() => {
     if (!dataSelecionada) return "Selecione a data";
-
-    return new Date(`${dataSelecionada}T00:00:00`).toLocaleDateString(
-      "pt-BR",
-      {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }
-    );
-  }, [dataSelecionada]);
+    return dataFormatadaApi;
+  }, [dataSelecionada, dataFormatadaApi]);
 
   const servicosFormatados = servicosSelecionados.join(", ");
 
@@ -77,7 +90,9 @@ export default function Agendar() {
 
     try {
       const res = await fetch(
-        `${API_URL}/horarios?data=${dataFormatadaApi}&barbeiro_id=${BARBEIRO_ID}`
+        `${API_URL}/horarios?data=${encodeURIComponent(
+          dataFormatadaApi
+        )}&barbeiro_id=${BARBEIRO_ID}`
       );
       const json = await res.json();
 
@@ -156,17 +171,7 @@ export default function Agendar() {
             min={dataMinima}
             value={dataSelecionada}
             onChange={(e) => {
-              const novaData = e.target.value;
-
-              if (novaData && novaData < dataMinima) {
-                setMensagemErro("Não é possível selecionar uma data passada.");
-                setDataSelecionada("");
-                setHorarios([]);
-                setSelectedHora("");
-                return;
-              }
-
-              setDataSelecionada(novaData);
+              setDataSelecionada(e.target.value);
               setMensagemErro("");
               setHorarios([]);
               setSelectedHora("");
