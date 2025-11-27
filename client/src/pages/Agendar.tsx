@@ -39,6 +39,11 @@ export default function Agendar() {
     setMensagemErro("");
   };
 
+  const dataMinima = useMemo(
+    () => new Date().toISOString().split("T")[0],
+    []
+  );
+
   const dataFormatadaApi = useMemo(() => {
     if (!dataSelecionada) return "";
     return dataSelecionada;
@@ -148,9 +153,20 @@ export default function Agendar() {
           <label className="block text-[#D9A66A]">Data</label>
           <input
             type="date"
+            min={dataMinima}
             value={dataSelecionada}
             onChange={(e) => {
-              setDataSelecionada(e.target.value);
+              const novaData = e.target.value;
+
+              if (novaData && novaData < dataMinima) {
+                setMensagemErro("Não é possível selecionar uma data passada.");
+                setDataSelecionada("");
+                setHorarios([]);
+                setSelectedHora("");
+                return;
+              }
+
+              setDataSelecionada(novaData);
               setMensagemErro("");
               setHorarios([]);
               setSelectedHora("");
