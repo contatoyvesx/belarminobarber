@@ -4,8 +4,36 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 import { cn } from "@/lib/utils";
 
+const formatDatePtBr = (date: Date) =>
+  date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+
+const gerarProximosDias = (quantidade: number) => {
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: quantidade }, (_, index) => {
+    const data = new Date(hoje);
+    data.setDate(data.getDate() + index);
+
+    return {
+      id: data.getTime(),
+      valorApi: formatDatePtBr(data),
+      label: data.toLocaleDateString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+      }),
+      semana: data.toLocaleDateString("pt-BR", { weekday: "short" }),
+      completo: formatDatePtBr(data),
+    };
+  });
+};
+
 export default function Agendar() {
-  const [dataSelecionada, setDataSelecionada] = useState("");
+  const [dataSelecionada, setDataSelecionada] = useState(() => new Date().setHours(0, 0, 0, 0));
   const [horarios, setHorarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedHora, setSelectedHora] = useState("");
@@ -39,28 +67,22 @@ export default function Agendar() {
     setMensagemErro("");
   };
 
-  const dataMinima = useMemo(
-    () => new Date().toISOString().split("T")[0],
-    []
-  );
+  const diasDisponiveis = useMemo(() => gerarProximosDias(15), []);
 
   const dataFormatadaApi = useMemo(() => {
     if (!dataSelecionada) return "";
-    return dataSelecionada;
+    return formatDatePtBr(new Date(dataSelecionada));
   }, [dataSelecionada]);
 
   const dataFormatadaDisplay = useMemo(() => {
-    if (!dataSelecionada) return "Selecione a data";
-
-    return new Date(`${dataSelecionada}T00:00:00`).toLocaleDateString(
-      "pt-BR",
-      {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }
+    const dataEscolhida = diasDisponiveis.find(
+      (dia) => dia.id === dataSelecionada
     );
-  }, [dataSelecionada]);
+
+    if (!dataEscolhida) return "Selecione a data";
+
+    return dataEscolhida.completo;
+  }, [dataSelecionada, diasDisponiveis]);
 
   const servicosFormatados = servicosSelecionados.join(", ");
 
@@ -77,7 +99,9 @@ export default function Agendar() {
 
     try {
       const res = await fetch(
-        `${API_URL}/horarios?data=${dataFormatadaApi}&barbeiro_id=${BARBEIRO_ID}`
+        `${API_URL}/horarios?data=${encodeURIComponent(
+          dataFormatadaApi
+        )}&barbeiro_id=${BARBEIRO_ID}`
       );
       const json = await res.json();
 
@@ -149,34 +173,37 @@ export default function Agendar() {
         </h1>
 
         {/* Data */}
-        <div className="space-y-2">
+        <div className="space-y-3">
           <label className="block text-[#D9A66A]">Data</label>
-          <input
-            type="date"
-            min={dataMinima}
-            value={dataSelecionada}
-            onChange={(e) => {
-              const novaData = e.target.value;
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {diasDisponiveis.map((dia) => {
+              const selecionado = dia.id === dataSelecionada;
 
-              if (novaData && novaData < dataMinima) {
-                setMensagemErro("Não é possível selecionar uma data passada.");
-                setDataSelecionada("");
-                setHorarios([]);
-                setSelectedHora("");
-                return;
-              }
-
-              setDataSelecionada(novaData);
-              setMensagemErro("");
-              setHorarios([]);
-              setSelectedHora("");
-            }}
-            className={cn(
-              "w-full rounded border border-[#6e2317] bg-[#1b0402] px-3 py-3 text-[#E8C8A3]",
-              !dataSelecionada && "text-[#E8C8A3]/70"
-            )}
-            placeholder="Selecione a data"
-          />
+              return (
+                <button
+                  key={dia.id}
+                  type="button"
+                  onClick={() => {
+                    setDataSelecionada(dia.id);
+                    setMensagemErro("");
+                    setHorarios([]);
+                    setSelectedHora("");
+                  }}
+                  className={cn(
+                    "flex flex-col items-start rounded border px-3 py-2 text-left transition",
+                    selecionado
+                      ? "border-[#D9A66A] bg-[#26100d] text-[#D9A66A]"
+                      : "border-[#6e2317] bg-[#1b0402] text-[#E8C8A3] hover:border-[#D9A66A]/60"
+                  )}
+                >
+                  <span className="text-sm uppercase tracking-wide text-[#D9A66A]">
+                    {dia.semana}
+                  </span>
+                  <span className="text-lg font-semibold">{dia.label}</span>
+                </button>
+              );
+            })}
+          </div>
           <div className="text-sm text-[#E8C8A3]">{dataFormatadaDisplay}</div>
         </div>
 
