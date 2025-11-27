@@ -11,25 +11,17 @@ const formatDatePtBr = (date: Date) =>
     year: "numeric",
   });
 
-const gerarProximosDias = (quantidade: number) => {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+const formatDateInput = (date: Date) => {
+  const ano = date.getFullYear();
+  const mes = String(date.getMonth() + 1).padStart(2, "0");
+  const dia = String(date.getDate()).padStart(2, "0");
 
-  return Array.from({ length: quantidade }, (_, index) => {
-    const data = new Date(hoje);
-    data.setDate(data.getDate() + index);
+  return `${ano}-${mes}-${dia}`;
+};
 
-    return {
-      id: data.getTime(),
-      valorApi: formatDatePtBr(data),
-      label: data.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-      }),
-      semana: data.toLocaleDateString("pt-BR", { weekday: "short" }),
-      completo: formatDatePtBr(data),
-    };
-  });
+const parseDateString = (value: string) => {
+  const [ano, mes, dia] = value.split("-").map(Number);
+  return new Date(ano, (mes || 1) - 1, dia || 1, 0, 0, 0, 0);
 };
 
 export default function Agendar() {
@@ -67,22 +59,21 @@ export default function Agendar() {
     setMensagemErro("");
   };
 
-  const diasDisponiveis = useMemo(() => gerarProximosDias(15), []);
+  const dataMinima = useMemo(() => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    return formatDateInput(hoje);
+  }, []);
 
   const dataFormatadaApi = useMemo(() => {
     if (!dataSelecionada) return "";
-    return formatDatePtBr(new Date(dataSelecionada));
+    return formatDatePtBr(parseDateString(dataSelecionada));
   }, [dataSelecionada]);
 
   const dataFormatadaDisplay = useMemo(() => {
-    const dataEscolhida = diasDisponiveis.find(
-      (dia) => dia.id === dataSelecionada
-    );
-
-    if (!dataEscolhida) return "Selecione a data";
-
-    return dataEscolhida.completo;
-  }, [dataSelecionada, diasDisponiveis]);
+    if (!dataSelecionada) return "Selecione a data";
+    return dataFormatadaApi;
+  }, [dataSelecionada, dataFormatadaApi]);
 
   const servicosFormatados = servicosSelecionados.join(", ");
 
@@ -175,35 +166,22 @@ export default function Agendar() {
         {/* Data */}
         <div className="space-y-3">
           <label className="block text-[#D9A66A]">Data</label>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {diasDisponiveis.map((dia) => {
-              const selecionado = dia.id === dataSelecionada;
-
-              return (
-                <button
-                  key={dia.id}
-                  type="button"
-                  onClick={() => {
-                    setDataSelecionada(dia.id);
-                    setMensagemErro("");
-                    setHorarios([]);
-                    setSelectedHora("");
-                  }}
-                  className={cn(
-                    "flex flex-col items-start rounded border px-3 py-2 text-left transition",
-                    selecionado
-                      ? "border-[#D9A66A] bg-[#26100d] text-[#D9A66A]"
-                      : "border-[#6e2317] bg-[#1b0402] text-[#E8C8A3] hover:border-[#D9A66A]/60"
-                  )}
-                >
-                  <span className="text-sm uppercase tracking-wide text-[#D9A66A]">
-                    {dia.semana}
-                  </span>
-                  <span className="text-lg font-semibold">{dia.label}</span>
-                </button>
-              );
-            })}
-          </div>
+          <input
+            type="date"
+            min={dataMinima}
+            value={dataSelecionada}
+            onChange={(e) => {
+              setDataSelecionada(e.target.value);
+              setMensagemErro("");
+              setHorarios([]);
+              setSelectedHora("");
+            }}
+            className={cn(
+              "w-full rounded border border-[#6e2317] bg-[#1b0402] px-3 py-3 text-[#E8C8A3]",
+              !dataSelecionada && "text-[#E8C8A3]/70"
+            )}
+            placeholder="Selecione a data"
+          />
           <div className="text-sm text-[#E8C8A3]">{dataFormatadaDisplay}</div>
         </div>
 
