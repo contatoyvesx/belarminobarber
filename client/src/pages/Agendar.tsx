@@ -4,12 +4,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 
 import { cn } from "@/lib/utils";
 
-const formatDateForInput = (date: Date) => {
-  const offsetMs = date.getTimezoneOffset() * 60_000;
-  const localDate = new Date(date.getTime() - offsetMs);
-
-  return localDate.toISOString().split("T")[0];
-};
+const formatDatePtBr = (date: Date) =>
+  date.toLocaleDateString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
 const gerarProximosDias = (quantidade: number) => {
   const hoje = new Date();
@@ -20,25 +20,20 @@ const gerarProximosDias = (quantidade: number) => {
     data.setDate(data.getDate() + index);
 
     return {
-      valor: formatDateForInput(data),
+      id: data.getTime(),
+      valorApi: formatDatePtBr(data),
       label: data.toLocaleDateString("pt-BR", {
         day: "2-digit",
         month: "2-digit",
       }),
       semana: data.toLocaleDateString("pt-BR", { weekday: "short" }),
-      completo: data.toLocaleDateString("pt-BR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-      }),
+      completo: formatDatePtBr(data),
     };
   });
 };
 
 export default function Agendar() {
-  const [dataSelecionada, setDataSelecionada] = useState(() =>
-    formatDateForInput(new Date())
-  );
+  const [dataSelecionada, setDataSelecionada] = useState(() => new Date().setHours(0, 0, 0, 0));
   const [horarios, setHorarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedHora, setSelectedHora] = useState("");
@@ -76,12 +71,12 @@ export default function Agendar() {
 
   const dataFormatadaApi = useMemo(() => {
     if (!dataSelecionada) return "";
-    return dataSelecionada;
+    return formatDatePtBr(new Date(dataSelecionada));
   }, [dataSelecionada]);
 
   const dataFormatadaDisplay = useMemo(() => {
     const dataEscolhida = diasDisponiveis.find(
-      (dia) => dia.valor === dataSelecionada
+      (dia) => dia.id === dataSelecionada
     );
 
     if (!dataEscolhida) return "Selecione a data";
@@ -104,7 +99,9 @@ export default function Agendar() {
 
     try {
       const res = await fetch(
-        `${API_URL}/horarios?data=${dataFormatadaApi}&barbeiro_id=${BARBEIRO_ID}`
+        `${API_URL}/horarios?data=${encodeURIComponent(
+          dataFormatadaApi
+        )}&barbeiro_id=${BARBEIRO_ID}`
       );
       const json = await res.json();
 
@@ -180,14 +177,14 @@ export default function Agendar() {
           <label className="block text-[#D9A66A]">Data</label>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {diasDisponiveis.map((dia) => {
-              const selecionado = dia.valor === dataSelecionada;
+              const selecionado = dia.id === dataSelecionada;
 
               return (
                 <button
-                  key={dia.valor}
+                  key={dia.id}
                   type="button"
                   onClick={() => {
-                    setDataSelecionada(dia.valor);
+                    setDataSelecionada(dia.id);
                     setMensagemErro("");
                     setHorarios([]);
                     setSelectedHora("");
