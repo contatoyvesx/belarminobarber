@@ -11,23 +11,14 @@ const formatDatePtBr = (date: Date) =>
     year: "numeric",
   });
 
-const formatDateInput = (date: Date) => {
-  const ano = date.getFullYear();
-  const mes = String(date.getMonth() + 1).padStart(2, "0");
-  const dia = String(date.getDate()).padStart(2, "0");
-
-  return `${ano}-${mes}-${dia}`;
-};
-
-const parseDateString = (value: string) => {
-  const [ano, mes, dia] = value.split("-").map(Number);
-  return new Date(ano, (mes || 1) - 1, dia || 1, 0, 0, 0, 0);
-};
+const formatDateApi = (date: Date) => date.toISOString().slice(0, 10);
 
 export default function Agendar() {
-  const dataSelecionada = useMemo(
-    () => formatDateInput(new Date()),
-    []
+  const dataAtual = useMemo(() => new Date(), []);
+  const dataParaApi = useMemo(() => formatDateApi(dataAtual), [dataAtual]);
+  const dataParaExibicao = useMemo(
+    () => formatDatePtBr(dataAtual),
+    [dataAtual]
   );
   const [horarios, setHorarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
@@ -62,11 +53,6 @@ export default function Agendar() {
     setMensagemErro("");
   };
 
-  const dataFormatadaApi = useMemo(() => {
-    if (!dataSelecionada) return "";
-    return formatDatePtBr(parseDateString(dataSelecionada));
-  }, [dataSelecionada]);
-
   const servicosFormatados = servicosSelecionados.join(", ");
 
   async function buscarHorarios() {
@@ -78,7 +64,7 @@ export default function Agendar() {
     try {
       const res = await fetch(
         `${API_URL}/horarios?data=${encodeURIComponent(
-          dataFormatadaApi
+          dataParaApi
         )}&barbeiro_id=${BARBEIRO_ID}`
       );
       const json = await res.json();
@@ -99,7 +85,6 @@ export default function Agendar() {
     if (
       !cliente ||
       !telefone ||
-      !dataSelecionada ||
       !servicosSelecionados.length ||
       !selectedHora
     ) {
@@ -113,7 +98,7 @@ export default function Agendar() {
       cliente,
       telefone,
       servico: servicosFormatados,
-      data: dataFormatadaApi,
+      data: dataParaApi,
       hora: selectedHora,
       barbeiro_id: BARBEIRO_ID,
     };
@@ -128,7 +113,7 @@ export default function Agendar() {
       const json = await res.json();
 
       if (json.status === "confirmado") {
-        const resumo = `Novo agendamento confirmado:\n\n🧔 Cliente: ${cliente}\n📅 Data: ${dataFormatadaApi}\n⏰ Hora: ${selectedHora}\n💈 Serviço: ${servicosFormatados}`;
+        const resumo = `Novo agendamento confirmado:\n\n🧔 Cliente: ${cliente}\n📅 Data: ${dataParaExibicao}\n⏰ Hora: ${selectedHora}\n💈 Serviço: ${servicosFormatados}`;
 
         window.open(
           `https://wa.me/5511952861321?text=${encodeURIComponent(resumo)}`,
