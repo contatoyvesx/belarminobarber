@@ -25,7 +25,10 @@ const parseDateString = (value: string) => {
 };
 
 export default function Agendar() {
-  const [dataSelecionada, setDataSelecionada] = useState(() => new Date().setHours(0, 0, 0, 0));
+  const dataSelecionada = useMemo(
+    () => formatDateInput(new Date()),
+    []
+  );
   const [horarios, setHorarios] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedHora, setSelectedHora] = useState("");
@@ -59,30 +62,14 @@ export default function Agendar() {
     setMensagemErro("");
   };
 
-  const dataMinima = useMemo(() => {
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    return formatDateInput(hoje);
-  }, []);
-
   const dataFormatadaApi = useMemo(() => {
     if (!dataSelecionada) return "";
     return formatDatePtBr(parseDateString(dataSelecionada));
   }, [dataSelecionada]);
 
-  const dataFormatadaDisplay = useMemo(() => {
-    if (!dataSelecionada) return "Selecione a data";
-    return dataFormatadaApi;
-  }, [dataSelecionada, dataFormatadaApi]);
-
   const servicosFormatados = servicosSelecionados.join(", ");
 
   async function buscarHorarios() {
-    if (!dataSelecionada) {
-      setMensagemErro("Selecione uma data.");
-      return;
-    }
-
     setLoading(true);
     setMensagemErro("");
     setSelectedHora("");
@@ -141,7 +128,7 @@ export default function Agendar() {
       const json = await res.json();
 
       if (json.status === "confirmado") {
-        const resumo = `Novo agendamento confirmado:\n\n🧔 Cliente: ${cliente}\n📅 Data: ${dataFormatadaDisplay}\n⏰ Hora: ${selectedHora}\n💈 Serviço: ${servicosFormatados}`;
+        const resumo = `Novo agendamento confirmado:\n\n🧔 Cliente: ${cliente}\n📅 Data: ${dataFormatadaApi}\n⏰ Hora: ${selectedHora}\n💈 Serviço: ${servicosFormatados}`;
 
         window.open(
           `https://wa.me/5511952861321?text=${encodeURIComponent(resumo)}`,
@@ -162,28 +149,6 @@ export default function Agendar() {
         <h1 className="text-4xl font-bold text-center text-[#D9A66A]">
           Agendar Horário
         </h1>
-
-        {/* Data */}
-        <div className="space-y-3">
-          <label className="block text-[#D9A66A]">Data</label>
-          <input
-            type="date"
-            min={dataMinima}
-            value={dataSelecionada}
-            onChange={(e) => {
-              setDataSelecionada(e.target.value);
-              setMensagemErro("");
-              setHorarios([]);
-              setSelectedHora("");
-            }}
-            className={cn(
-              "w-full rounded border border-[#6e2317] bg-[#1b0402] px-3 py-3 text-[#E8C8A3]",
-              !dataSelecionada && "text-[#E8C8A3]/70"
-            )}
-            placeholder="Selecione a data"
-          />
-          <div className="text-sm text-[#E8C8A3]">{dataFormatadaDisplay}</div>
-        </div>
 
         {/* Buscar horários */}
         <button
