@@ -220,7 +220,7 @@ export async function inserirAgendamento(agendamento: NovoAgendamento) {
 // ---------- ROTA: /horarios ----------
 //
 export function horariosRoute(app: Express) {
-  app.get("/horarios", async (req: Request, res: Response) => {
+  app.get("/api/horarios", async (req: Request, res: Response) => {
     const parsed = horariosQuerySchema.safeParse(req.query);
 
     if (!parsed.success) {
@@ -257,7 +257,7 @@ export function horariosRoute(app: Express) {
 export function agendarRoute(app: Express) {
   app.use(express.json());
 
-  app.post("/agendar", async (req: Request, res: Response) => {
+  app.post("/api/agendar", async (req: Request, res: Response) => {
     const parsed = novoAgendamentoSchema.safeParse(req.body ?? {});
 
     if (!parsed.success) {

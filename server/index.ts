@@ -4,6 +4,7 @@ import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
 import { registrarRotasDeAgenda } from "./schedule";
+import { supabase } from "./supabase";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,8 +14,24 @@ async function startServer() {
   const server = createServer(app);
 
   // 🔥 ROTA DE HEALTHCHECK (IMPORTANTE: antes de tudo!)
-  app.get("/health", (_req, res) => {
-    res.json({ status: "ok" });
+  app.get("/api/health", async (_req, res) => {
+    try {
+      const { error } = await supabase.from("agenda_config").select("id").limit(1);
+
+      if (error) {
+        throw error;
+      }
+
+      res.json({ status: "ok", supabase: "connected" });
+    } catch (error: any) {
+      res
+        .status(500)
+        .json({
+          status: "error",
+          supabase: "disconnected",
+          message: error?.message ?? "Não foi possível verificar o Supabase.",
+        });
+    }
   });
 
   // 🔥 ROTAS DO SEU BACKEND REAL
