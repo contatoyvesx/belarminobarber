@@ -12,6 +12,7 @@ export default function Home() {
   const [barbeariaScrollProgress, setBarbeariaScrollProgress] = useState(0);
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
   const [customerName, setCustomerName] = useState('');
+  const [preferredDate, setPreferredDate] = useState('');
   const [preferredTime, setPreferredTime] = useState('');
   const [notes, setNotes] = useState('');
   const [formError, setFormError] = useState('');
@@ -162,14 +163,15 @@ export default function Home() {
 
     setFormError('');
 
-    const summary = `👤 Cliente: ${customerName}\n✂️ Serviços: ${selectedServices.join(' • ')}\n🕒 Quando: ${
-      preferredTime || 'A combinar'
-    }\n📝 Observações: ${notes || 'Sem observações'}`;
+    const summary = `👤 Cliente: ${customerName}\n✂️ Serviços: ${selectedServices.join(' • ')}\n📅 Data: ${
+      preferredDate || 'A combinar'
+    }\n🕒 Horário: ${preferredTime || 'A combinar'}\n📝 Observações: ${notes || 'Sem observações'}`;
 
     window.open(`https://wa.me/5511952861321?text=${encodeURIComponent(summary)}`, '_blank');
 
     setSelectedServices([]);
     setCustomerName('');
+    setPreferredDate('');
     setPreferredTime('');
     setNotes('');
   };
@@ -693,6 +695,15 @@ export default function Home() {
                       onChange={(event) => setCustomerName(event.target.value)}
                       required
                       placeholder="Como podemos te chamar?"
+                      className="w-full rounded-md bg-[#1b0402] border border-[#6e2317] px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D9A66A] focus:ring-1 focus:ring-[#D9A66A]"
+                    />
+                  </label>
+                  <label className="space-y-2 text-sm font-semibold text-[#D9A66A]">
+                    Data do atendimento
+                    <input
+                      type="date"
+                      value={preferredDate}
+                      onChange={(event) => setPreferredDate(event.target.value)}
                       className="w-full rounded-md bg-[#1b0402] border border-[#6e2317] px-4 py-3 text-white placeholder:text-gray-500 focus:outline-none focus:border-[#D9A66A] focus:ring-1 focus:ring-[#D9A66A]"
                     />
                   </label>
