@@ -27,7 +27,8 @@ export default function Agendar() {
   const [mensagemSucesso, setMensagemSucesso] = useState("");
 
   const BARBEIRO_ID = "be3c5248-746f-44ed-8b3c-73ca71a40703";
-  const API_URL = "https://api-belarmino.yvesx.com.br/api";
+  const API_URL =
+    import.meta.env.VITE_API_URL || "https://api-belarmino.yvesx.com.br/api";
 
   const servicos = useMemo(
     () => [

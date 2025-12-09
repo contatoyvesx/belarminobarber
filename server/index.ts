@@ -1,5 +1,6 @@
 import "./loadEnv";
 import express from "express";
+import fs from "fs";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -37,18 +38,20 @@ async function startServer() {
   // 🔥 ROTAS DO SEU BACKEND REAL
   registrarRotasDeAgenda(app);
 
-  // 🔥 STATIC + FRONTEND SPA
+  // 🔥 STATIC + FRONTEND SPA (opcional, só se houver build disponível)
   const staticPath =
     process.env.NODE_ENV === "production"
-      ? path.resolve(__dirname, "public")
-      : path.resolve(__dirname, "..", "dist", "public");
+      ? path.resolve(__dirname, "..", "frontend")
+      : path.resolve(__dirname, "..", "dist", "frontend");
 
-  app.use(express.static(staticPath));
+  if (fs.existsSync(staticPath)) {
+    app.use(express.static(staticPath));
 
-  // 🔥 SPA fallback – sempre por ÚLTIMO
-  app.get("*", (_req, res) => {
-    res.sendFile(path.join(staticPath, "index.html"));
-  });
+    // 🔥 SPA fallback – sempre por ÚLTIMO
+    app.get("*", (_req, res) => {
+      res.sendFile(path.join(staticPath, "index.html"));
+    });
+  }
 
   const port = process.env.PORT || 3000;
 

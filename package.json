@@ -5,8 +5,13 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "start": "NODE_ENV=production node dist/index.js",
+    "dev:frontend": "vite --host",
+    "dev:backend": "tsx server/index.ts",
+    "build": "pnpm run build:frontend && pnpm run build:backend",
+    "build:frontend": "vite build",
+    "build:backend": "esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist/backend",
+    "start": "NODE_ENV=production node dist/backend/index.js",
+    "start:backend": "NODE_ENV=production node dist/backend/index.js",
     "preview": "vite preview --host",
     "check": "tsc --noEmit",
     "format": "prettier --write ."

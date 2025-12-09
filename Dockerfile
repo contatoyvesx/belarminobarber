@@ -16,7 +16,7 @@ RUN pnpm run build
 RUN pnpm prune --prod
 
 # ---------------------------
-# 2) Runner (Node + Express)
+# 2) Runner (Node + Express API)
 # ---------------------------
 FROM node:20-alpine AS runner
 WORKDIR /app
@@ -32,4 +32,4 @@ COPY package.json ./
 EXPOSE 3000
 
 # Comando que seu package.json já define
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/backend/index.js"]
