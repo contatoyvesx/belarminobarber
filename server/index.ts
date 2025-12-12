@@ -1,6 +1,5 @@
 import "./loadEnv";
 import express from "express";
-import cors from "cors";
 import fs from "fs";
 import { createServer } from "http";
 import path from "path";
@@ -15,22 +14,20 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
-  // ✅ CORS — TEM QUE SER ANTES DE QUALQUER ROTA
-  app.use(
-    cors({
-      origin: [
-        "https://belarmino.yvesx.com.br",
-        "https://www.belarmino.yvesx.com.br",
-      ],
-      methods: ["GET", "POST", "OPTIONS"],
-      allowedHeaders: ["Content-Type", "Authorization"],
-    })
-  );
+  // ✅ CORS MANUAL (SEM DEPENDÊNCIA)
+  app.use((req, res, next) => {
+    res.setHeader("Access-Control-Allow-Origin", "https://belarmino.yvesx.com.br");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
-  // Para preflight OPTIONS
-  app.options("*", cors());
+    if (req.method === "OPTIONS") {
+      return res.sendStatus(204);
+    }
 
-  // 🔥 ROTA DE HEALTHCHECK
+    next();
+  });
+
+  // 🔥 HEALTHCHECK
   app.get("/api/health", async (_req, res) => {
     try {
       const { error } = await supabase
@@ -45,7 +42,7 @@ async function startServer() {
       res.status(500).json({
         status: "error",
         supabase: "disconnected",
-        message: error?.message ?? "Não foi possível verificar o Supabase.",
+        message: error?.message ?? "Erro Supabase",
       });
     }
   });
@@ -53,7 +50,7 @@ async function startServer() {
   // 🔥 ROTAS DA AGENDA
   registrarRotasDeAgenda(app);
 
-  // 🔥 STATIC + SPA (se existir)
+  // 🔥 STATIC + SPA
   const staticPath =
     process.env.NODE_ENV === "production"
       ? path.resolve(__dirname, "..", "frontend")
@@ -62,7 +59,6 @@ async function startServer() {
   if (fs.existsSync(staticPath)) {
     app.use(express.static(staticPath));
 
-    // SPA fallback – ÚLTIMO
     app.get("*", (_req, res) => {
       res.sendFile(path.join(staticPath, "index.html"));
     });
