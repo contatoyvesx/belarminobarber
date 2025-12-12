@@ -1,5 +1,6 @@
 import "./loadEnv";
 import express from "express";
+import cors from "cors";
 import fs from "fs";
 import { createServer } from "http";
 import path from "path";
@@ -14,31 +15,45 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
-  // 🔥 ROTA DE HEALTHCHECK (IMPORTANTE: antes de tudo!)
+  // ✅ CORS — TEM QUE SER ANTES DE QUALQUER ROTA
+  app.use(
+    cors({
+      origin: [
+        "https://belarmino.yvesx.com.br",
+        "https://www.belarmino.yvesx.com.br",
+      ],
+      methods: ["GET", "POST", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+    })
+  );
+
+  // Para preflight OPTIONS
+  app.options("*", cors());
+
+  // 🔥 ROTA DE HEALTHCHECK
   app.get("/api/health", async (_req, res) => {
     try {
-      const { error } = await supabase.from("agenda_config").select("id").limit(1);
+      const { error } = await supabase
+        .from("agenda_config")
+        .select("id")
+        .limit(1);
 
-      if (error) {
-        throw error;
-      }
+      if (error) throw error;
 
       res.json({ status: "ok", supabase: "connected" });
     } catch (error: any) {
-      res
-        .status(500)
-        .json({
-          status: "error",
-          supabase: "disconnected",
-          message: error?.message ?? "Não foi possível verificar o Supabase.",
-        });
+      res.status(500).json({
+        status: "error",
+        supabase: "disconnected",
+        message: error?.message ?? "Não foi possível verificar o Supabase.",
+      });
     }
   });
 
-  // 🔥 ROTAS DO SEU BACKEND REAL
+  // 🔥 ROTAS DA AGENDA
   registrarRotasDeAgenda(app);
 
-  // 🔥 STATIC + FRONTEND SPA (opcional, só se houver build disponível)
+  // 🔥 STATIC + SPA (se existir)
   const staticPath =
     process.env.NODE_ENV === "production"
       ? path.resolve(__dirname, "..", "frontend")
@@ -47,7 +62,7 @@ async function startServer() {
   if (fs.existsSync(staticPath)) {
     app.use(express.static(staticPath));
 
-    // 🔥 SPA fallback – sempre por ÚLTIMO
+    // SPA fallback – ÚLTIMO
     app.get("*", (_req, res) => {
       res.sendFile(path.join(staticPath, "index.html"));
     });
