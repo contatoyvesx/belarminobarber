@@ -58,10 +58,10 @@ export async function carregarConfigAgenda(
   barbeiroId: string,
   data: string,
 ): Promise<AgendaConfig> {
-  
-  // CORREÇÃO AQUI — agora domingo = 0 (compatível com Supabase)
- const [ano, mes, dia] = data.split("-").map(Number);
-const diaDaSemana = new Date(ano, mes - 1, dia).getDay();
+
+  // cálculo de dia da semana sem UTC
+  const [ano, mes, dia] = data.split("-").map(Number);
+  const diaDaSemana = new Date(ano, mes - 1, dia).getDay();
 
   console.log("📆 Buscando config agenda:", { barbeiroId, data, diaDaSemana });
 
@@ -70,7 +70,8 @@ const diaDaSemana = new Date(ano, mes - 1, dia).getDay();
     .select("abre, fecha, duracao")
     .eq("barbeiro_id", barbeiroId)
     .eq("dia_semana", diaDaSemana)
-    .maybeSingle();
+    .limit(1)
+    .single();
 
   console.log("🔍 Resultado config:", { config, error });
 
