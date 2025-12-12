@@ -60,7 +60,8 @@ export async function carregarConfigAgenda(
 ): Promise<AgendaConfig> {
   
   // CORREÇÃO AQUI — agora domingo = 0 (compatível com Supabase)
-  const diaDaSemana = new Date(data).getDay();
+ const [ano, mes, dia] = data.split("-").map(Number);
+const diaDaSemana = new Date(ano, mes - 1, dia).getDay();
 
   console.log("📆 Buscando config agenda:", { barbeiroId, data, diaDaSemana });
 
