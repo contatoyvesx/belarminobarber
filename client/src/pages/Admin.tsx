@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+
 import AgendaVisual from "@/components/AgendaVisual";
 
 const API = import.meta.env.VITE_API_URL || "/api";
@@ -34,18 +35,56 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
   const [token, setToken] = useState("");
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 320, padding: 24, border: "1px solid #333", borderRadius: 12 }}>
-        <h2 style={{ marginBottom: 12 }}>Área do Barbeiro</h2>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 420,
+          padding: 24,
+          border: "1px solid rgba(255,255,255,.14)",
+          borderRadius: 12,
+          background: "rgba(0,0,0,.35)",
+          boxShadow: "0 12px 32px rgba(0,0,0,.35)",
+        }}
+      >
+        <h2 style={{ marginBottom: 12, fontSize: 20, fontWeight: 900 }}>Área do Barbeiro</h2>
+        <p style={{ marginBottom: 16, opacity: 0.8 }}>
+          Digite sua senha para acessar o painel de horários.
+        </p>
         <input
           type="password"
           placeholder="Senha de acesso"
           value={token}
           onChange={(e) => setToken(e.target.value)}
-          style={{ width: "100%", height: 40, marginBottom: 10 }}
+          style={{
+            width: "100%",
+            height: 42,
+            marginBottom: 12,
+            borderRadius: 8,
+            padding: "0 12px",
+            border: "1px solid rgba(255,255,255,.14)",
+            background: "rgba(0,0,0,.25)",
+            color: "#fff",
+          }}
         />
         <button
-          style={{ width: "100%", height: 40, fontWeight: 700 }}
+          style={{
+            width: "100%",
+            height: 42,
+            fontWeight: 800,
+            borderRadius: 8,
+            background: "linear-gradient(120deg,#f97316,#c026d3)",
+            color: "#fff",
+            border: "none",
+          }}
           onClick={() => onLogin(token)}
         >
           Entrar
@@ -159,9 +198,14 @@ export default function Admin() {
 
   return (
     <div style={{ maxWidth: 1000, margin: "0 auto", padding: 20 }}>
-      <h1 style={{ fontSize: 28, fontWeight: 900 }}>Agenda do Barbeiro</h1>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 900, flex: 1 }}>Agenda do Barbeiro</h1>
+        <button onClick={logout} style={{ fontWeight: 700 }}>
+          Sair
+        </button>
+      </div>
 
-      <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
         <input type="date" value={data} onChange={(e) => setData(e.target.value)} />
 
         <select
@@ -183,8 +227,6 @@ export default function Admin() {
         <button onClick={carregar} disabled={loading}>
           {loading ? "Carregando..." : "Carregar"}
         </button>
-
-        <button onClick={logout}>Sair</button>
       </div>
 
       {erro && <div style={{ color: "red", marginTop: 10 }}>{erro}</div>}
