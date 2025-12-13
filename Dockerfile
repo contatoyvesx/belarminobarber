@@ -1,21 +1,21 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
 # Copia tudo
 COPY . .
 
-# Ativa corepack (pnpm)
+# Ativa pnpm
 RUN corepack enable
 
-# Instala dependências (já reduzidas após passo 1 e 2)
+# Instala deps (scripts permitidos, necessário pro rollup)
 RUN pnpm install --frozen-lockfile
 
-# Builda frontend + backend
+# Build frontend + backend
 RUN pnpm run build
 
-# Expõe a porta do backend
+# Porta do backend
 EXPOSE 3000
 
-# Start do servidor
+# Start
 CMD ["pnpm", "start"]
