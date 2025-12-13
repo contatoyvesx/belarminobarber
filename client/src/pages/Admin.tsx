@@ -106,6 +106,15 @@ export default function Admin() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
+  /* ===== FORCE LOGIN ON FIRST VISIT ===== */
+
+  useEffect(() => {
+    localStorage.removeItem("belarmino_admin_token");
+    localStorage.removeItem("belarmino_admin_barbeiro");
+    setToken("");
+    setBarbeiroId("");
+  }, []);
+
   /* ===== AUTH ===== */
 
   function login(t: string) {
@@ -126,10 +135,25 @@ export default function Admin() {
   useEffect(() => {
     if (!token) return;
 
-    fetch(`${API}/admin/barbeiros?token=${encodeURIComponent(token)}`)
-      .then((r) => r.json())
-      .then((j) => setBarbeiros(j.barbeiros || []))
-      .catch(() => setErro("Erro ao carregar barbeiros"));
+    fetch(`${API}/admin/barbeiros`, {
+      headers: { "x-admin-token": token },
+    })
+      .then(async (r) => {
+        if (r.status === 401) {
+          logout();
+          return [] as Barbeiro[];
+        }
+
+        if (!r.ok) {
+          const j = await r.json().catch(() => ({}));
+          throw new Error(j?.mensagem || "Erro ao carregar barbeiros");
+        }
+
+        const j = await r.json();
+        return j.barbeiros || [];
+      })
+      .then((lista) => setBarbeiros(lista))
+      .catch((e) => setErro(e.message || "Erro ao carregar barbeiros"));
   }, [token]);
 
   /* ===== LOAD AGENDA ===== */
