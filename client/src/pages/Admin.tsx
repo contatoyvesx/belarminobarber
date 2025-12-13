@@ -15,6 +15,11 @@ type Agendamento = {
   status: Status;
 };
 
+type Barbeiro = {
+  id: string;
+  nome: string;
+};
+
 function hojeISO() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -28,43 +33,24 @@ function badgeStyle(s: Status) {
   return { background: "#eab30822", color: "#eab308" };
 }
 
-/* ================= LOGIN ================= */
-
-function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
-  const [token, setToken] = useState("");
-
-  return (
-    <div style={{ minHeight: "100vh", display: "flex", justifyContent: "center", alignItems: "center" }}>
-      <div style={{ width: 320, padding: 24, borderRadius: 14, border: "1px solid #333" }}>
-        <h2 style={{ fontWeight: 900, marginBottom: 14 }}>Área do Barbeiro</h2>
-        <input
-          type="password"
-          placeholder="Senha de acesso"
-          value={token}
-          onChange={(e) => setToken(e.target.value)}
-          style={{ width: "100%", height: 40, marginBottom: 12 }}
-        />
-        <button
-          onClick={() => onLogin(token)}
-          style={{ width: "100%", height: 40, fontWeight: 900 }}
-        >
-          Entrar
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/* ================= ADMIN ================= */
-
 export default function Admin() {
   const [token, setToken] = useState(localStorage.getItem("belarmino_admin_token") || "");
   const [barbeiroId, setBarbeiroId] = useState(localStorage.getItem("belarmino_admin_barbeiro") || "");
   const [data, setData] = useState(hojeISO());
-
+  const [barbeiros, setBarbeiros] = useState<Barbeiro[]>([]);
   const [items, setItems] = useState<Agendamento[]>([]);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    if (token && !barbeiroId) {
+      // Fetching the list of barbers when admin logs in
+      fetch(`${API}/admin/barbeiros?token=${encodeURIComponent(token)}`)
+        .then((res) => res.json())
+        .then((data) => setBarbeiros(data.barbeiros))
+        .catch(() => setErro("Falha ao carregar barbeiros."));
+    }
+  }, [token, barbeiroId]);
 
   function login(t: string) {
     localStorage.setItem("belarmino_admin_token", t);
@@ -129,7 +115,6 @@ export default function Admin() {
     [items]
   );
 
-  /* ====== LOGIN GATE ====== */
   if (!token) {
     return <AdminLogin onLogin={login} />;
   }
@@ -140,14 +125,20 @@ export default function Admin() {
 
       <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
         <input type="date" value={data} onChange={(e) => setData(e.target.value)} />
-        <input
-          placeholder="Barbeiro ID (por enquanto)"
+        <select
           value={barbeiroId}
           onChange={(e) => {
             setBarbeiroId(e.target.value);
             localStorage.setItem("belarmino_admin_barbeiro", e.target.value);
           }}
-        />
+        >
+          <option value="">Selecione o barbeiro</option>
+          {barbeiros.map((barbeiro) => (
+            <option key={barbeiro.id} value={barbeiro.id}>
+              {barbeiro.nome}
+            </option>
+          ))}
+        </select>
         <button onClick={carregar} disabled={loading}>
           {loading ? "Carregando..." : "Carregar"}
         </button>
