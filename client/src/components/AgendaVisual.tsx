@@ -1,8 +1,5 @@
 import React from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-
 type Status = "pendente" | "confirmado" | "cancelado";
 
 type Agendamento = {
@@ -11,21 +8,29 @@ type Agendamento = {
   telefone: string;
   servico: string;
   inicio: string; // "09:00:00"
-  fim: string;    // "09:30:00"
+  fim: string; // "09:30:00"
   status: Status;
 };
 
 type Props = {
   agendamentos: Agendamento[];
+  onConfirmar?: (id: number) => void;
+  onCancelar?: (id: number) => void;
 };
 
 const hhmm = (t: string) => t.slice(0, 5);
 
-const statusStyle: Record<Status, string> = {
-  confirmado: "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
-  cancelado: "border-red-500/30 bg-red-500/10 text-red-100",
-  pendente: "border-amber-400/30 bg-amber-400/10 text-amber-100",
-};
+function statusColor(status: Status) {
+  if (status === "confirmado") return "#22c55e";
+  if (status === "cancelado") return "#ef4444";
+  return "#eab308"; // pendente
+}
+
+function statusBg(status: Status) {
+  if (status === "confirmado") return "rgba(34,197,94,.15)";
+  if (status === "cancelado") return "rgba(239,68,68,.15)";
+  return "rgba(234,179,8,.18)";
+}
 
 // Gera slots fixos de 30min (09:00–18:00)
 function gerarSlots() {
@@ -37,7 +42,7 @@ function gerarSlots() {
   return slots;
 }
 
-export default function AgendaVisual({ agendamentos }: Props) {
+export default function AgendaVisual({ agendamentos, onConfirmar, onCancelar }: Props) {
   const slots = gerarSlots();
 
   const mapa = new Map<string, Agendamento>();
@@ -46,41 +51,104 @@ export default function AgendaVisual({ agendamentos }: Props) {
   });
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] shadow-lg shadow-black/20">
+    <div
+      style={{
+        marginTop: 20,
+        border: "1px solid rgba(255,255,255,.14)",
+        borderRadius: 14,
+        overflow: "hidden",
+      }}
+    >
       {slots.map((hora) => {
         const a = mapa.get(hora);
 
         return (
           <div
             key={hora}
-            className={cn(
-              "grid grid-cols-1 border-b border-white/5 last:border-0 sm:grid-cols-[96px_1fr]",
-              a ? "bg-white/[0.03]" : "bg-black/10"
-            )}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "70px 1fr",
+              borderBottom: "1px solid rgba(255,255,255,.08)",
+              background: a ? statusBg(a.status) : "rgba(0,0,0,.15)",
+              minHeight: 54,
+            }}
           >
-            <div className="flex items-center justify-between gap-3 border-b border-white/5 px-4 py-4 text-sm font-semibold uppercase tracking-wide text-slate-200 sm:border-b-0 sm:border-r sm:text-base">
-              <span>{hora}</span>
-              {a && (
-                <span className="text-xs font-normal text-slate-400 sm:hidden">{`${hhmm(a.inicio)} - ${hhmm(a.fim)}`}</span>
-              )}
+            {/* HORA */}
+            <div
+              style={{
+                padding: "14px 10px",
+                fontWeight: 900,
+                opacity: 0.85,
+                borderRight: "1px solid rgba(255,255,255,.08)",
+              }}
+            >
+              {hora}
             </div>
 
-            <div className="px-4 py-4">
+            {/* BLOCO */}
+            <div style={{ padding: "10px 14px" }}>
               {a ? (
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="space-y-1">
-                    <div className="text-lg font-semibold text-white">{a.cliente}</div>
-                    <div className="text-sm text-slate-300">{a.servico}</div>
-                    <div className="text-xs text-slate-400">{a.telefone}</div>
-                  </div>
+                <div>
+                  <div style={{ fontWeight: 900 }}>{a.cliente}</div>
+                  <div style={{ fontSize: 13, opacity: 0.8 }}>{a.servico}</div>
+                  <div style={{ fontSize: 12, opacity: 0.7 }}>{a.telefone}</div>
 
-                  <div className="flex flex-col items-start gap-2 sm:items-end">
-                    <Badge className={cn("capitalize", statusStyle[a.status])}>{a.status}</Badge>
-                    <span className="text-xs text-slate-400">{`${hhmm(a.inicio)} - ${hhmm(a.fim)}`}</span>
+                  <div style={{ marginTop: 8, display: "flex", gap: 8, alignItems: "center" }}>
+                    <div
+                      style={{
+                        display: "inline-block",
+                        padding: "4px 10px",
+                        borderRadius: 999,
+                        fontSize: 12,
+                        fontWeight: 900,
+                        color: statusColor(a.status),
+                        border: `1px solid ${statusColor(a.status)}55`,
+                      }}
+                    >
+                      {a.status}
+                    </div>
+
+                    <span style={{ fontSize: 12, opacity: 0.7 }}>{`${hhmm(a.inicio)} - ${hhmm(a.fim)}`}</span>
+
+                    <div style={{ display: "flex", gap: 6, marginLeft: "auto" }}>
+                      {onConfirmar && (
+                        <button
+                          onClick={() => onConfirmar(a.id)}
+                          style={{
+                            borderRadius: 6,
+                            padding: "4px 8px",
+                            border: "1px solid #22c55e55",
+                            color: "#22c55e",
+                            background: "transparent",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Confirmar
+                        </button>
+                      )}
+
+                      {onCancelar && (
+                        <button
+                          onClick={() => onCancelar(a.id)}
+                          style={{
+                            borderRadius: 6,
+                            padding: "4px 8px",
+                            border: "1px solid #ef444455",
+                            color: "#ef4444",
+                            background: "transparent",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               ) : (
-                <div className="text-sm italic text-slate-400">Horário livre</div>
+                <div style={{ opacity: 0.5, fontStyle: "italic" }}>Livre</div>
               )}
             </div>
           </div>

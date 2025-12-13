@@ -1,15 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
 import AgendaVisual from "@/components/AgendaVisual";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 
 const API = import.meta.env.VITE_API_URL || "/api";
 
@@ -44,35 +35,60 @@ function AdminLogin({ onLogin }: { onLogin: (t: string) => void }) {
   const [token, setToken] = useState("");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black px-4 py-12 text-slate-100">
-      <div className="mx-auto flex h-full max-w-xl items-center justify-center">
-        <Card className="w-full border-white/10 bg-white/5 shadow-xl shadow-black/30 backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-2xl font-bold">Área do Barbeiro</CardTitle>
-            <CardDescription className="text-sm text-slate-300">
-              Acesse o painel administrativo com sua senha exclusiva.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-slate-200" htmlFor="token">
-                Senha de acesso
-              </label>
-              <Input
-                id="token"
-                type="password"
-                placeholder="Digite sua senha"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                className="h-11 border-white/10 bg-black/30 text-base"
-              />
-            </div>
-
-            <Button className="h-11 w-full text-base font-semibold" onClick={() => onLogin(token)}>
-              Entrar
-            </Button>
-          </CardContent>
-        </Card>
+    <div
+      style={{
+        minHeight: "100vh",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: 20,
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 420,
+          padding: 24,
+          border: "1px solid rgba(255,255,255,.14)",
+          borderRadius: 12,
+          background: "rgba(0,0,0,.35)",
+          boxShadow: "0 12px 32px rgba(0,0,0,.35)",
+        }}
+      >
+        <h2 style={{ marginBottom: 12, fontSize: 20, fontWeight: 900 }}>Área do Barbeiro</h2>
+        <p style={{ marginBottom: 16, opacity: 0.8 }}>
+          Digite sua senha para acessar o painel de horários.
+        </p>
+        <input
+          type="password"
+          placeholder="Senha de acesso"
+          value={token}
+          onChange={(e) => setToken(e.target.value)}
+          style={{
+            width: "100%",
+            height: 42,
+            marginBottom: 12,
+            borderRadius: 8,
+            padding: "0 12px",
+            border: "1px solid rgba(255,255,255,.14)",
+            background: "rgba(0,0,0,.25)",
+            color: "#fff",
+          }}
+        />
+        <button
+          style={{
+            width: "100%",
+            height: 42,
+            fontWeight: 800,
+            borderRadius: 8,
+            background: "linear-gradient(120deg,#f97316,#c026d3)",
+            color: "#fff",
+            border: "none",
+          }}
+          onClick={() => onLogin(token)}
+        >
+          Entrar
+        </button>
       </div>
     </div>
   );
@@ -181,112 +197,45 @@ export default function Admin() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-black px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-6xl space-y-8">
-        <header className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Administração</p>
-            <h1 className="text-3xl font-bold leading-tight text-white sm:text-4xl">Agenda do Barbeiro</h1>
-            <p className="text-sm text-slate-300">
-              Consulte os horários do dia, confirme ou cancele agendamentos com rapidez.
-            </p>
-          </div>
-
-          <Button variant="outline" className="self-start border-white/20" onClick={logout}>
-            Sair
-          </Button>
-        </header>
-
-        <Card className="border-white/10 bg-white/5 shadow-lg shadow-black/20 backdrop-blur">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xl">Filtro de agenda</CardTitle>
-            <CardDescription className="text-slate-300">
-              Escolha a data e o profissional para visualizar a programação do dia.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1.2fr_auto]">
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-200" htmlFor="data">
-                  Data
-                </label>
-                <Input
-                  id="data"
-                  type="date"
-                  value={data}
-                  onChange={(e) => setData(e.target.value)}
-                  className="h-11 border-white/15 bg-black/30 text-base"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-200" htmlFor="barbeiro">
-                  Barbeiro
-                </label>
-                <select
-                  id="barbeiro"
-                  value={barbeiroId}
-                  onChange={(e) => {
-                    setBarbeiroId(e.target.value);
-                    setItems([]);
-                    localStorage.setItem("belarmino_admin_barbeiro", e.target.value);
-                  }}
-                  className="h-11 w-full rounded-md border border-white/15 bg-black/30 px-3 text-base font-medium text-slate-100 shadow-inner outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/40"
-                >
-                  <option value="">Selecione o barbeiro</option>
-                  {barbeiros.map((b) => (
-                    <option key={b.id} value={b.id} className="bg-slate-900">
-                      {b.nome}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex items-end gap-3">
-                <Button
-                  className="h-11 w-full sm:w-auto"
-                  onClick={carregar}
-                  disabled={loading || !barbeiroId}
-                >
-                  {loading ? "Carregando..." : "Carregar agenda"}
-                </Button>
-              </div>
-            </div>
-
-            {erro && (
-              <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100 shadow-sm">
-                {erro}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-white/10 bg-white/[0.06] shadow-xl shadow-black/30 backdrop-blur">
-          <CardHeader className="pb-3">
-            <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-              <div className="space-y-1">
-                <CardTitle className="text-2xl">Agenda do dia</CardTitle>
-                <CardDescription className="text-slate-300">
-                  Visualize rapidamente os horários ocupados e livres.
-                </CardDescription>
-              </div>
-
-              {barbeiroId && (
-                <div className="rounded-full border border-white/10 bg-black/30 px-4 py-2 text-sm text-slate-200">
-                  {barbeiros.find((b) => b.id === barbeiroId)?.nome || "Selecionando barbeiro"}
-                </div>
-              )}
-            </div>
-          </CardHeader>
-          <CardContent className="pb-6">
-            <AgendaVisual
-              agendamentos={lista}
-              onConfirmar={(id) => atualizarStatus(id, "confirmado")}
-              onCancelar={(id) => atualizarStatus(id, "cancelado")}
-            />
-          </CardContent>
-        </Card>
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: 20 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+        <h1 style={{ fontSize: 28, fontWeight: 900, flex: 1 }}>Agenda do Barbeiro</h1>
+        <button onClick={logout} style={{ fontWeight: 700 }}>
+          Sair
+        </button>
       </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+        <input type="date" value={data} onChange={(e) => setData(e.target.value)} />
+
+        <select
+          value={barbeiroId}
+          onChange={(e) => {
+            setBarbeiroId(e.target.value);
+            setItems([]);
+            localStorage.setItem("belarmino_admin_barbeiro", e.target.value);
+          }}
+        >
+          <option value="">Selecione o barbeiro</option>
+          {barbeiros.map((b) => (
+            <option key={b.id} value={b.id}>
+              {b.nome}
+            </option>
+          ))}
+        </select>
+
+        <button onClick={carregar} disabled={loading}>
+          {loading ? "Carregando..." : "Carregar"}
+        </button>
+      </div>
+
+      {erro && <div style={{ color: "red", marginTop: 10 }}>{erro}</div>}
+
+      <AgendaVisual
+        agendamentos={lista}
+        onConfirmar={(id) => atualizarStatus(id, "confirmado")}
+        onCancelar={(id) => atualizarStatus(id, "cancelado")}
+      />
     </div>
   );
 }
