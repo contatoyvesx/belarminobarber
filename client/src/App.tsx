@@ -6,6 +6,10 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Agendar from "./pages/Agendar";
+import Admin from "./pages/Admin";
+
+// ...
+<Route path="/admin" component={Admin} />
 
 function Router() {
   return (
