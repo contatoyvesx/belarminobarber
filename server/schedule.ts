@@ -166,3 +166,8 @@ async function startServer() {
 }
 
 startServer().catch(console.error);
+
+export function registrarRotasDeAgenda(app: Express) {
+  horariosRoute(app);
+  agendarRoute(app);
+}
