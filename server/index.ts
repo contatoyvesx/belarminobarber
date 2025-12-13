@@ -52,6 +52,9 @@ async function startServer() {
   // 🔥 ROTAS DA AGENDA
   registrarRotasDeAgenda(app);
 
+  registrarRotasAdmin(app);
+
+
   // 🔥 STATIC + SPA
   const staticPath =
     process.env.NODE_ENV === "production"
