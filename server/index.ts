@@ -47,6 +47,27 @@ async function startServer() {
   // ROTAS DE API
   // =========================
   registrarRotasDeAgenda(app);
+  // =========================
+// ROTAS PÚBLICAS
+// =========================
+app.get("/api/barbeiros", async (_req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from("barbeiros")
+      .select("id, nome")
+      .order("nome", { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ barbeiros: data ?? [] });
+  } catch (e: any) {
+    res.status(500).json({
+      mensagem: "Erro ao listar barbeiros",
+      detalhe: e?.message,
+    });
+  }
+});
+
   registrarRotasAdmin(app);
 
   // =========================
