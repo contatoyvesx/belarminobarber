@@ -1,3 +1,4 @@
+// server/admin.ts
 import type { Express, Request, Response } from "express";
 import { supabase } from "./supabase";
 
@@ -8,12 +9,10 @@ function auth(req: Request): boolean {
     (req.headers["x-admin-token"] as string | undefined) ||
     (req.query.token as string | undefined) ||
     "";
-
   return ADMIN_TOKEN.length > 0 && token === ADMIN_TOKEN;
 }
 
 export function registrarRotasAdmin(app: Express) {
-
   // =========================
   // LISTAR BARBEIROS (NOME)
   // =========================
@@ -26,14 +25,14 @@ export function registrarRotasAdmin(app: Express) {
       const { data, error } = await supabase
         .from("barbeiros")
         .select("id, nome")
-        .eq("ativo", true)
+        // REMOVIDO: .eq("ativo", true)  <-- essa coluna não existe
         .order("nome", { ascending: true });
 
       if (error) throw error;
 
-      res.json({ barbeiros: data ?? [] });
+      return res.json({ barbeiros: data ?? [] });
     } catch (e: any) {
-      res.status(500).json({
+      return res.status(500).json({
         mensagem: "Erro ao listar barbeiros",
         detalhe: e?.message,
       });
@@ -67,9 +66,9 @@ export function registrarRotasAdmin(app: Express) {
 
       if (error) throw error;
 
-      res.json({ agendamentos: rows ?? [] });
+      return res.json({ agendamentos: rows ?? [] });
     } catch (e: any) {
-      res.status(500).json({
+      return res.status(500).json({
         mensagem: "Erro ao listar agendamentos",
         detalhe: e?.message,
       });
@@ -101,9 +100,9 @@ export function registrarRotasAdmin(app: Express) {
 
       if (error) throw error;
 
-      res.json({ ok: true, agendamento: updated });
+      return res.json({ ok: true, agendamento: updated });
     } catch (e: any) {
-      res.status(500).json({
+      return res.status(500).json({
         mensagem: "Erro ao atualizar",
         detalhe: e?.message,
       });
