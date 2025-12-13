@@ -106,6 +106,15 @@ export default function Admin() {
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
 
+  /* ===== FORCE LOGIN ON FIRST VISIT ===== */
+
+  useEffect(() => {
+    localStorage.removeItem("belarmino_admin_token");
+    localStorage.removeItem("belarmino_admin_barbeiro");
+    setToken("");
+    setBarbeiroId("");
+  }, []);
+
   /* ===== AUTH ===== */
 
   function login(t: string) {
