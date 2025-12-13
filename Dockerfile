@@ -2,16 +2,17 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-RUN corepack enable
-
-# Copia TUDO de uma vez (menos camadas = menos lixo)
+# Copia tudo de uma vez (menos camadas)
 COPY . .
 
-# Instala dependências SEM cache e SEM scripts
-RUN pnpm install --frozen-lockfile --ignore-scripts --no-optional
+# Remove pnpm da equação (ele estoura disco)
+RUN rm -rf node_modules .pnpm-store
 
-# Build
-RUN pnpm run build
+# Usa npm (menos IO, menos temp, menos lixo)
+RUN npm install --legacy-peer-deps --no-audit --no-fund
+
+# Build frontend + backend
+RUN npm run build
 
 ENV NODE_ENV=production
 EXPOSE 3000
