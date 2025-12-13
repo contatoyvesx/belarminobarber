@@ -6,7 +6,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 
 import { registrarRotasDeAgenda } from "./schedule";
-import { registrarRotasAdmin } from "./admin"; // <<< FALTAVA ISSO
+import { registrarRotasAdmin } from "./admin";
 import { supabase } from "./supabase";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -16,9 +16,14 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
+  // =========================
+  // MIDDLEWARES
+  // =========================
   app.use(express.json());
 
-  // ================= HEALTH =================
+  // =========================
+  // HEALTHCHECK
+  // =========================
   app.get("/api/health", async (_req, res) => {
     try {
       const { error } = await supabase
@@ -33,16 +38,20 @@ async function startServer() {
       res.status(500).json({
         status: "error",
         supabase: "disconnected",
-        message: error?.message ?? "Erro Supabase",
+        message: error?.message ?? "Erro ao conectar no Supabase",
       });
     }
   });
 
-  // ================= ROTAS =================
+  // =========================
+  // ROTAS DE API
+  // =========================
   registrarRotasDeAgenda(app);
-  registrarRotasAdmin(app); // <<< ESSENCIAL
+  registrarRotasAdmin(app);
 
-  // ================= FRONT =================
+  // =========================
+  // FRONTEND (SPA)
+  // =========================
   const staticPath =
     process.env.NODE_ENV === "production"
       ? path.resolve(__dirname, "..", "frontend")
@@ -51,15 +60,22 @@ async function startServer() {
   if (fs.existsSync(staticPath)) {
     app.use(express.static(staticPath));
 
+    // SPA fallback — SEMPRE POR ÚLTIMO
     app.get("*", (_req, res) => {
       res.sendFile(path.join(staticPath, "index.html"));
     });
   }
 
+  // =========================
+  // START SERVER
+  // =========================
   const port = process.env.PORT || 3000;
+
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}`);
+    console.log(`🚀 Server running on http://localhost:${port}`);
   });
 }
 
-startServer().catch(console.error);
+startServer().catch((err) => {
+  console.error("❌ Failed to start server:", err);
+});
