@@ -1,5 +1,8 @@
 import React from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
 type Status = "pendente" | "confirmado" | "cancelado";
 
 type Agendamento = {
@@ -18,17 +21,11 @@ type Props = {
 
 const hhmm = (t: string) => t.slice(0, 5);
 
-function statusColor(status: Status) {
-  if (status === "confirmado") return "#22c55e";
-  if (status === "cancelado") return "#ef4444";
-  return "#eab308"; // pendente
-}
-
-function statusBg(status: Status) {
-  if (status === "confirmado") return "rgba(34,197,94,.15)";
-  if (status === "cancelado") return "rgba(239,68,68,.15)";
-  return "rgba(234,179,8,.18)";
-}
+const statusStyle: Record<Status, string> = {
+  confirmado: "border-emerald-500/30 bg-emerald-500/10 text-emerald-100",
+  cancelado: "border-red-500/30 bg-red-500/10 text-red-100",
+  pendente: "border-amber-400/30 bg-amber-400/10 text-amber-100",
+};
 
 // Gera slots fixos de 30min (09:00–18:00)
 function gerarSlots() {
@@ -49,69 +46,41 @@ export default function AgendaVisual({ agendamentos }: Props) {
   });
 
   return (
-    <div
-      style={{
-        marginTop: 20,
-        border: "1px solid rgba(255,255,255,.14)",
-        borderRadius: 14,
-        overflow: "hidden",
-      }}
-    >
+    <div className="overflow-hidden rounded-2xl border border-white/10 bg-white/[0.06] shadow-lg shadow-black/20">
       {slots.map((hora) => {
         const a = mapa.get(hora);
 
         return (
           <div
             key={hora}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "70px 1fr",
-              borderBottom: "1px solid rgba(255,255,255,.08)",
-              background: a ? statusBg(a.status) : "rgba(0,0,0,.15)",
-              minHeight: 54,
-            }}
+            className={cn(
+              "grid grid-cols-1 border-b border-white/5 last:border-0 sm:grid-cols-[96px_1fr]",
+              a ? "bg-white/[0.03]" : "bg-black/10"
+            )}
           >
-            {/* HORA */}
-            <div
-              style={{
-                padding: "14px 10px",
-                fontWeight: 900,
-                opacity: 0.85,
-                borderRight: "1px solid rgba(255,255,255,.08)",
-              }}
-            >
-              {hora}
+            <div className="flex items-center justify-between gap-3 border-b border-white/5 px-4 py-4 text-sm font-semibold uppercase tracking-wide text-slate-200 sm:border-b-0 sm:border-r sm:text-base">
+              <span>{hora}</span>
+              {a && (
+                <span className="text-xs font-normal text-slate-400 sm:hidden">{`${hhmm(a.inicio)} - ${hhmm(a.fim)}`}</span>
+              )}
             </div>
 
-            {/* BLOCO */}
-            <div style={{ padding: "10px 14px" }}>
+            <div className="px-4 py-4">
               {a ? (
-                <div>
-                  <div style={{ fontWeight: 900 }}>
-                    {a.cliente}
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="space-y-1">
+                    <div className="text-lg font-semibold text-white">{a.cliente}</div>
+                    <div className="text-sm text-slate-300">{a.servico}</div>
+                    <div className="text-xs text-slate-400">{a.telefone}</div>
                   </div>
-                  <div style={{ fontSize: 13, opacity: 0.8 }}>
-                    {a.servico}
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      display: "inline-block",
-                      padding: "4px 10px",
-                      borderRadius: 999,
-                      fontSize: 12,
-                      fontWeight: 900,
-                      color: statusColor(a.status),
-                      border: `1px solid ${statusColor(a.status)}55`,
-                    }}
-                  >
-                    {a.status}
+
+                  <div className="flex flex-col items-start gap-2 sm:items-end">
+                    <Badge className={cn("capitalize", statusStyle[a.status])}>{a.status}</Badge>
+                    <span className="text-xs text-slate-400">{`${hhmm(a.inicio)} - ${hhmm(a.fim)}`}</span>
                   </div>
                 </div>
               ) : (
-                <div style={{ opacity: 0.5, fontStyle: "italic" }}>
-                  Livre
-                </div>
+                <div className="text-sm italic text-slate-400">Horário livre</div>
               )}
             </div>
           </div>
