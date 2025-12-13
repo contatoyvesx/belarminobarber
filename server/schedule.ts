@@ -1,171 +1,155 @@
+import type { Express, Request, Response } from "express";
 import express from "express";
-import fs from "fs";
-import path from "path";
-import { createServer } from "http";
-import { fileURLToPath } from "url";
-import { registrarRotasDeAgenda } from "./schedule";
+import { horariosQuerySchema, novoAgendamentoSchema } from "./validation";
 import { supabase } from "./supabase";
 
-// Utilitário para converter horários em minutos
-const minutosDoHorario = (horario: string): number => {
-  const [hora, minuto] = horario.split(":").map(Number);
-  return hora * 60 + minuto;
+/* ================= TIPOS ================= */
+
+interface AgendaConfig {
+  abre: string;
+  fecha: string;
+  duracao: number;
+}
+
+interface Intervalo {
+  inicio: string;
+  fim: string;
+}
+
+/* ================= UTILS ================= */
+
+const toMin = (h: string) => {
+  const [hh, mm] = h.split(":").map(Number);
+  return hh * 60 + mm;
 };
 
-const horarioEmMinutos = (minutos: number): string => {
-  const hora = Math.floor(minutos / 60)
-    .toString()
-    .padStart(2, "0");
-  const minuto = (minutos % 60).toString().padStart(2, "0");
-  return `${hora}:${minuto}`;
-};
+const toHora = (m: number) =>
+  `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
-// Função para gerar os horários possíveis de acordo com a duração
-export function gerarHorariosPossiveis(config: AgendaConfig): string[] {
-  const horarios: string[] = [];
-  const inicio = minutosDoHorario(config.abre);
-  const fim = minutosDoHorario(config.fecha);
+/* ================= DB ================= */
 
-  for (let atual = inicio; atual + config.duracao <= fim; atual += config.duracao) {
-    horarios.push(horarioEmMinutos(atual));
+async function carregarConfigAgenda(barbeiroId: string, data: string): Promise<AgendaConfig> {
+  const [y, m, d] = data.split("-").map(Number);
+  const diaSemana = new Date(y, m - 1, d).getDay();
+
+  const { data: config, error } = await supabase
+    .from("agenda_config")
+    .select("abre, fecha, duracao")
+    .eq("barbeiro_id", barbeiroId)
+    .eq("dia_semana", diaSemana)
+    .single();
+
+  if (error || !config) throw error;
+  return config;
+}
+
+async function carregarAgendamentos(data: string, barbeiroId: string): Promise<Intervalo[]> {
+  const { data: a, error } = await supabase
+    .from("agendamentos")
+    .select("inicio, fim")
+    .eq("data", data)
+    .eq("barbeiro_id", barbeiroId);
+
+  if (error) throw error;
+  return a ?? [];
+}
+
+async function carregarBloqueios(data: string, barbeiroId: string): Promise<Intervalo[]> {
+  const { data: b, error } = await supabase
+    .from("bloqueios")
+    .select("inicio, fim")
+    .eq("data", data)
+    .eq("barbeiro_id", barbeiroId);
+
+  if (error) throw error;
+  return b ?? [];
+}
+
+/* ================= LÓGICA ================= */
+
+function gerarHorarios(config: AgendaConfig): string[] {
+  const h: string[] = [];
+  for (
+    let m = toMin(config.abre);
+    m + config.duracao <= toMin(config.fecha);
+    m += config.duracao
+  ) {
+    h.push(toHora(m));
   }
-
-  return horarios;
+  return h;
 }
 
-// Função para remover horários ocupados
-export function removerHorariosOcupados(
-  horarios: string[],
-  agendamentos: Agendamento[],
-  passoMinutos: number,
-): string[] {
-  const ocupados = new Set(
-    agendamentos.flatMap(({ inicio, fim }) => {
-      const inicioMin = minutosDoHorario(inicio);
-      const fimMin = minutosDoHorario(fim);
-      const intervalos: string[] = [];
-
-      for (let m = inicioMin; m < fimMin; m += passoMinutos) {
-        intervalos.push(horarioEmMinutos(m));
-      }
-
-      return intervalos;
+function removerOcupados(base: string[], intervalos: Intervalo[], passo: number) {
+  const set = new Set(
+    intervalos.flatMap(({ inicio, fim }) => {
+      const a = toMin(inicio);
+      const b = toMin(fim);
+      const r: string[] = [];
+      for (let m = a; m < b; m += passo) r.push(toHora(m));
+      return r;
     })
   );
-
-  return horarios.filter((h) => !ocupados.has(h));
+  return base.filter((h) => !set.has(h));
 }
 
-// Função para validar se o horário está bloqueado ou ocupado
-export function removerHorariosBloqueados(
-  horarios: string[],
-  bloqueios: Bloqueio[],
-  passoMinutos: number,
-): string[] {
-  const bloqueados = new Set(
-    bloqueios.flatMap(({ inicio, fim }) => {
-      const inicioMin = minutosDoHorario(inicio);
-      const fimMin = minutosDoHorario(fim);
-      const intervalos: string[] = [];
+/* ================= ROTAS ================= */
 
-      for (let m = inicioMin; m < fimMin; m += passoMinutos) {
-        intervalos.push(horarioEmMinutos(m));
-      }
+function horariosRoute(app: Express) {
+  app.get("/api/horarios", async (req: Request, res: Response) => {
+    const parsed = horariosQuerySchema.safeParse(req.query);
+    if (!parsed.success) return res.status(400).json({});
 
-      return intervalos;
-    })
-  );
+    const { data, barbeiro_id } = parsed.data;
 
-  return horarios.filter((h) => !bloqueados.has(h));
-}
-
-// Rota de agendamento que verifica se os horários estão disponíveis
-export function agendarRoute(app: express.Express) {
-  app.use(express.json());
-
-  app.post("/api/agendar", async (req: express.Request, res: express.Response) => {
-    const { data, hora, barbeiro_id } = req.body;
-
-    // Recuperando a configuração de horário e os agendamentos existentes
     try {
-      const [config, agendamentos, bloqueios] = await Promise.all([
-        carregarConfigAgenda(barbeiro_id, data),
-        carregarAgendamentosDoDia(data, barbeiro_id),
-        carregarBloqueiosDoDia(data, barbeiro_id),
-      ]);
+      const config = await carregarConfigAgenda(barbeiro_id, data);
+      const ag = await carregarAgendamentos(data, barbeiro_id);
+      const bl = await carregarBloqueios(data, barbeiro_id);
 
-      const livres = removerHorariosBloqueados(
-        removerHorariosOcupados(gerarHorariosPossiveis(config), agendamentos, config.duracao),
-        bloqueios,
+      const base = gerarHorarios(config);
+      const livres = removerOcupados(
+        removerOcupados(base, ag, config.duracao),
+        bl,
         config.duracao
       );
 
-      // Verifica se o horário escolhido está disponível
-      if (!livres.includes(hora)) {
-        return res.status(409).json({ mensagem: "Horário indisponível." });
-      }
+      res.json({ horarios: livres });
+    } catch {
+      res.status(500).json({ mensagem: "Erro ao buscar horários" });
+    }
+  });
+}
 
-      // Inserindo o agendamento
-      const criado = await inserirAgendamento({
-        cliente: req.body.cliente,
-        telefone: req.body.telefone,
-        servico: req.body.servico,
-        data,
-        hora,
-        barbeiro_id,
+function agendarRoute(app: Express) {
+  app.use(express.json());
+
+  app.post("/api/agendar", async (req: Request, res: Response) => {
+    const parsed = novoAgendamentoSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({});
+
+    const { data, hora, barbeiro_id } = parsed.data;
+
+    try {
+      const config = await carregarConfigAgenda(barbeiro_id, data);
+      const inicio = hora;
+      const fim = toHora(toMin(hora) + config.duracao);
+
+      const { error } = await supabase.from("agendamentos").insert({
+        ...parsed.data,
+        inicio,
+        fim,
       });
 
-      return res.status(201).json({ status: "confirmado", agendamento: criado });
-    } catch (error: any) {
-      console.error("Erro ao criar agendamento:", error.message);
-      res.status(500).json({ mensagem: "Não foi possível criar o agendamento." });
+      if (error) throw error;
+
+      res.status(201).json({ status: "confirmado" });
+    } catch {
+      res.status(500).json({ mensagem: "Erro ao confirmar." });
     }
   });
 }
 
-// Função principal para iniciar o servidor
-async function startServer() {
-  const app = express();
-  const server = createServer(app);
-
-  // Rota de healthcheck
-  app.get("/api/health", async (_req, res) => {
-    try {
-      const { error } = await supabase.from("agenda_config").select("id").limit(1);
-
-      if (error) {
-        throw error;
-      }
-
-      res.json({ status: "ok", supabase: "connected" });
-    } catch (error: any) {
-      res.status(500).json({ status: "error", supabase: "disconnected", message: error?.message ?? "Não foi possível verificar o Supabase." });
-    }
-  });
-
-  // Registrando rotas de agendamento
-  registrarRotasDeAgenda(app);
-
-  // Serve arquivos estáticos se existir build
-  const staticPath = process.env.NODE_ENV === "production" ? path.resolve(__dirname, "..", "frontend") : path.resolve(__dirname, "..", "dist", "frontend");
-
-  if (fs.existsSync(staticPath)) {
-    app.use(express.static(staticPath));
-
-    // SPA fallback
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(staticPath, "index.html"));
-    });
-  }
-
-  const port = process.env.PORT || 3000;
-
-  server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
-  });
-}
-
-startServer().catch(console.error);
+/* ================= EXPORT ÚNICO ================= */
 
 export function registrarRotasDeAgenda(app: Express) {
   horariosRoute(app);
