@@ -28,6 +28,8 @@ export interface NovoAgendamento {
   barbeiro_id: string;
 }
 
+/* ================= UTILIDADES ================= */
+
 const minutos = (h: string) => {
   const [hh, mm] = h.split(":").map(Number);
   return hh * 60 + mm;
@@ -35,6 +37,8 @@ const minutos = (h: string) => {
 
 const horario = (m: number) =>
   `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+/* ================= BANCO ================= */
 
 async function carregarConfigAgenda(barbeiroId: string, data: string): Promise<AgendaConfig> {
   const [y, m, d] = data.split("-").map(Number);
@@ -74,6 +78,8 @@ async function carregarBloqueios(data: string, barbeiroId: string) {
   return b ?? [];
 }
 
+/* ================= LÓGICA ================= */
+
 function gerarHorarios(config: AgendaConfig) {
   const h: string[] = [];
   for (
@@ -99,10 +105,14 @@ function remover(h: string[], lista: { inicio: string; fim: string }[], dur: num
   return h.filter((x) => !set.has(x));
 }
 
+/* ================= ROTAS ================= */
+
 export function horariosRoute(app: Express) {
-  app.get("/api/horarios", async (req, res) => {
+  app.get("/api/horarios", async (req: Request, res: Response) => {
     const parsed = horariosQuerySchema.safeParse(req.query);
-    if (!parsed.success) return res.status(400).json({});
+    if (!parsed.success) {
+      return res.status(400).json({ mensagem: "Parâmetros inválidos" });
+    }
 
     const { data, barbeiro_id } = parsed.data;
 
@@ -126,27 +136,37 @@ export function agendarRoute(app: Express) {
 
   app.post("/api/agendar", async (req: Request, res: Response) => {
     const parsed = novoAgendamentoSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({});
+    if (!parsed.success) {
+      return res.status(400).json({ mensagem: "Dados inválidos" });
+    }
 
     const { data, hora, barbeiro_id } = parsed.data;
 
     try {
       const config = await carregarConfigAgenda(barbeiro_id, data);
 
-      const ini = hora;
+      const inicio = hora;
       const fim = horario(minutos(hora) + config.duracao);
 
       const { error } = await supabase.from("agendamentos").insert({
-        ...parsed.data,
-        inicio: ini,
+        cliente: parsed.data.cliente,
+        telefone: parsed.data.telefone,
+        servico: parsed.data.servico,
+        data,
+        barbeiro_id,
+        inicio,
         fim,
       });
 
       if (error) throw error;
 
-      res.status(201).json({ status: "ok" });
+      // 🔥 RESPOSTA QUE O FRONT ESPERA
+      res.status(201).json({
+        status: "confirmado",
+        mensagem: "Agendamento realizado com sucesso",
+      });
     } catch {
-      res.status(500).json({ mensagem: "Erro ao agendar" });
+      res.status(500).json({ mensagem: "Erro ao confirmar." });
     }
   });
 }
