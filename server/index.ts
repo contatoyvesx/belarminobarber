@@ -4,10 +4,10 @@ import fs from "fs";
 import { createServer } from "http";
 import path from "path";
 import { fileURLToPath } from "url";
-import { registrarRotasDeAgenda } from "./schedule";
-import { supabase } from "./supabase";
-import { registrarRotasAdmin } from "./admin";
 
+import { registrarRotasDeAgenda } from "./schedule";
+import { registrarRotasAdmin } from "./admin"; // <<< FALTAVA ISSO
+import { supabase } from "./supabase";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -16,20 +16,9 @@ async function startServer() {
   const app = express();
   const server = createServer(app);
 
-  // ✅ CORS MANUAL (SEM DEPENDÊNCIA)
-  app.use((req, res, next) => {
-    res.setHeader("Access-Control-Allow-Origin", "https://belarmino.yvesx.com.br");
-    res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  app.use(express.json());
 
-    if (req.method === "OPTIONS") {
-      return res.sendStatus(204);
-    }
-
-    next();
-  });
-
-  // 🔥 HEALTHCHECK
+  // ================= HEALTH =================
   app.get("/api/health", async (_req, res) => {
     try {
       const { error } = await supabase
@@ -49,13 +38,11 @@ async function startServer() {
     }
   });
 
-  // 🔥 ROTAS DA AGENDA
+  // ================= ROTAS =================
   registrarRotasDeAgenda(app);
+  registrarRotasAdmin(app); // <<< ESSENCIAL
 
-  registrarRotasAdmin(app);
-
-
-  // 🔥 STATIC + SPA
+  // ================= FRONT =================
   const staticPath =
     process.env.NODE_ENV === "production"
       ? path.resolve(__dirname, "..", "frontend")
@@ -70,9 +57,8 @@ async function startServer() {
   }
 
   const port = process.env.PORT || 3000;
-
   server.listen(port, () => {
-    console.log(`Server running on http://localhost:${port}/`);
+    console.log(`Server running on http://localhost:${port}`);
   });
 }
 
