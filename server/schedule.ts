@@ -26,6 +26,18 @@ const toMin = (h: string) => {
 const toHora = (m: number) =>
   `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 
+/* ================= ADMIN AUTH ================= */
+
+const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "";
+
+function isAdmin(req: Request) {
+  const token =
+    (req.headers["x-admin-token"] as string | undefined) ||
+    (req.query.token as string | undefined) ||
+    "";
+  return ADMIN_TOKEN.length > 0 && token === ADMIN_TOKEN;
+}
+
 /* ================= DB ================= */
 
 async function carregarConfigAgenda(barbeiroId: string, data: string): Promise<AgendaConfig> {
@@ -69,11 +81,7 @@ async function carregarBloqueios(data: string, barbeiroId: string): Promise<Inte
 
 function gerarHorarios(config: AgendaConfig): string[] {
   const h: string[] = [];
-  for (
-    let m = toMin(config.abre);
-    m + config.duracao <= toMin(config.fecha);
-    m += config.duracao
-  ) {
+  for (let m = toMin(config.abre); m + config.duracao <= toMin(config.fecha); m += config.duracao) {
     h.push(toHora(m));
   }
   return h;
@@ -92,7 +100,7 @@ function removerOcupados(base: string[], intervalos: Intervalo[], passo: number)
   return base.filter((h) => !set.has(h));
 }
 
-/* ================= ROTAS ================= */
+/* ================= ROTAS PÚBLICAS ================= */
 
 function horariosRoute(app: Express) {
   app.get("/api/horarios", async (req: Request, res: Response) => {
@@ -107,15 +115,11 @@ function horariosRoute(app: Express) {
       const bl = await carregarBloqueios(data, barbeiro_id);
 
       const base = gerarHorarios(config);
-      const livres = removerOcupados(
-        removerOcupados(base, ag, config.duracao),
-        bl,
-        config.duracao
-      );
+      const livres = removerOcupados(removerOcupados(base, ag, config.duracao), bl, config.duracao);
 
       res.json({ horarios: livres });
-    } catch {
-      res.status(500).json({ mensagem: "Erro ao buscar horários" });
+    } catch (e: any) {
+      res.status(500).json({ mensagem: "Erro ao buscar horários", detalhe: e?.message });
     }
   });
 }
@@ -138,13 +142,69 @@ function agendarRoute(app: Express) {
         ...parsed.data,
         inicio,
         fim,
+        status: "pendente",
       });
 
       if (error) throw error;
 
       res.status(201).json({ status: "confirmado" });
-    } catch {
-      res.status(500).json({ mensagem: "Erro ao confirmar." });
+    } catch (e: any) {
+      res.status(500).json({ mensagem: "Erro ao confirmar.", detalhe: e?.message });
+    }
+  });
+}
+
+/* ================= ROTAS ADMIN ================= */
+
+function adminRoutes(app: Express) {
+  // Listar agendamentos do dia
+  app.get("/api/admin/agendamentos", async (req: Request, res: Response) => {
+    if (!isAdmin(req)) return res.status(401).json({ mensagem: "Não autorizado" });
+
+    const data = String(req.query.data || "");
+    const barbeiro_id = String(req.query.barbeiro_id || "");
+    if (!data || !barbeiro_id) {
+      return res.status(400).json({ mensagem: "data e barbeiro_id são obrigatórios" });
+    }
+
+    try {
+      const { data: rows, error } = await supabase
+        .from("agendamentos")
+        .select("id, cliente, telefone, servico, data, inicio, fim, status")
+        .eq("data", data)
+        .eq("barbeiro_id", barbeiro_id)
+        .order("inicio", { ascending: true });
+
+      if (error) throw error;
+
+      res.json({ agendamentos: rows ?? [] });
+    } catch (e: any) {
+      res.status(500).json({ mensagem: "Erro ao listar agendamentos", detalhe: e?.message });
+    }
+  });
+
+  // Atualizar status: confirmado | cancelado
+  app.patch("/api/admin/agendamentos/:id", async (req: Request, res: Response) => {
+    if (!isAdmin(req)) return res.status(401).json({ mensagem: "Não autorizado" });
+
+    const id = req.params.id;
+    const status = String(req.body?.status || "").trim();
+
+    if (!id || !status) return res.status(400).json({ mensagem: "status obrigatório" });
+
+    try {
+      const { data: updated, error } = await supabase
+        .from("agendamentos")
+        .update({ status })
+        .eq("id", id)
+        .select("id, status")
+        .single();
+
+      if (error) throw error;
+
+      res.json({ ok: true, agendamento: updated });
+    } catch (e: any) {
+      res.status(500).json({ mensagem: "Erro ao atualizar", detalhe: e?.message });
     }
   });
 }
@@ -154,4 +214,5 @@ function agendarRoute(app: Express) {
 export function registrarRotasDeAgenda(app: Express) {
   horariosRoute(app);
   agendarRoute(app);
+  adminRoutes(app);
 }
