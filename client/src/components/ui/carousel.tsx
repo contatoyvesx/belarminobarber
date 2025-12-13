@@ -1,27 +1,24 @@
 import * as React from "react";
-import useEmblaCarousel, {
-  type UseEmblaCarouselType,
-} from "embla-carousel-react";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-type CarouselApi = UseEmblaCarouselType[1];
-type UseCarouselParameters = Parameters<typeof useEmblaCarousel>;
-type CarouselOptions = UseCarouselParameters[0];
-type CarouselPlugin = UseCarouselParameters[1];
+type CarouselApi = {
+  scrollPrev: () => void;
+  scrollNext: () => void;
+  container: HTMLDivElement | null;
+};
 
 type CarouselProps = {
-  opts?: CarouselOptions;
-  plugins?: CarouselPlugin;
   orientation?: "horizontal" | "vertical";
   setApi?: (api: CarouselApi) => void;
 };
 
 type CarouselContextProps = {
-  carouselRef: ReturnType<typeof useEmblaCarousel>[0];
-  api: ReturnType<typeof useEmblaCarousel>[1];
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  api: CarouselApi;
+  orientation: "horizontal" | "vertical";
   scrollPrev: () => void;
   scrollNext: () => void;
   canScrollPrev: boolean;
@@ -42,36 +39,81 @@ function useCarousel() {
 
 function Carousel({
   orientation = "horizontal",
-  opts,
   setApi,
-  plugins,
   className,
   children,
   ...props
 }: React.ComponentProps<"div"> & CarouselProps) {
-  const [carouselRef, api] = useEmblaCarousel(
-    {
-      ...opts,
-      axis: orientation === "horizontal" ? "x" : "y",
-    },
-    plugins
-  );
+  const containerRef = React.useRef<HTMLDivElement>(null);
   const [canScrollPrev, setCanScrollPrev] = React.useState(false);
   const [canScrollNext, setCanScrollNext] = React.useState(false);
 
-  const onSelect = React.useCallback((api: CarouselApi) => {
-    if (!api) return;
-    setCanScrollPrev(api.canScrollPrev());
-    setCanScrollNext(api.canScrollNext());
-  }, []);
+  const syncScrollState = React.useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const { scrollLeft, scrollTop, scrollWidth, scrollHeight, clientWidth, clientHeight } =
+      container;
+
+    if (orientation === "horizontal") {
+      setCanScrollPrev(scrollLeft > 0);
+      setCanScrollNext(scrollLeft + clientWidth < scrollWidth - 1);
+    } else {
+      setCanScrollPrev(scrollTop > 0);
+      setCanScrollNext(scrollTop + clientHeight < scrollHeight - 1);
+    }
+  }, [orientation]);
 
   const scrollPrev = React.useCallback(() => {
-    api?.scrollPrev();
-  }, [api]);
+    const container = containerRef.current;
+    if (!container) return;
+
+    const amount =
+      orientation === "horizontal" ? container.clientWidth : container.clientHeight;
+    if (orientation === "horizontal") {
+      container.scrollBy({ left: -amount, behavior: "smooth" });
+    } else {
+      container.scrollBy({ top: -amount, behavior: "smooth" });
+    }
+  }, [orientation]);
 
   const scrollNext = React.useCallback(() => {
-    api?.scrollNext();
-  }, [api]);
+    const container = containerRef.current;
+    if (!container) return;
+
+    const amount =
+      orientation === "horizontal" ? container.clientWidth : container.clientHeight;
+    if (orientation === "horizontal") {
+      container.scrollBy({ left: amount, behavior: "smooth" });
+    } else {
+      container.scrollBy({ top: amount, behavior: "smooth" });
+    }
+  }, [orientation]);
+
+  React.useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const api: CarouselApi = {
+      scrollPrev,
+      scrollNext,
+      container,
+    };
+
+    setApi?.(api);
+    syncScrollState();
+
+    const handleScroll = () => syncScrollState();
+    container.addEventListener("scroll", handleScroll, { passive: true });
+
+    const resizeObserver = new ResizeObserver(() => syncScrollState());
+    resizeObserver.observe(container);
+
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+      resizeObserver.disconnect();
+    };
+  }, [setApi, syncScrollState, scrollNext, scrollPrev]);
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -86,30 +128,12 @@ function Carousel({
     [scrollPrev, scrollNext]
   );
 
-  React.useEffect(() => {
-    if (!api || !setApi) return;
-    setApi(api);
-  }, [api, setApi]);
-
-  React.useEffect(() => {
-    if (!api) return;
-    onSelect(api);
-    api.on("reInit", onSelect);
-    api.on("select", onSelect);
-
-    return () => {
-      api?.off("select", onSelect);
-    };
-  }, [api, onSelect]);
-
   return (
     <CarouselContext.Provider
       value={{
-        carouselRef,
-        api: api,
-        opts,
-        orientation:
-          orientation || (opts?.axis === "y" ? "vertical" : "horizontal"),
+        containerRef,
+        api: { scrollPrev, scrollNext, container: containerRef.current },
+        orientation,
         scrollPrev,
         scrollNext,
         canScrollPrev,
@@ -131,18 +155,23 @@ function Carousel({
 }
 
 function CarouselContent({ className, ...props }: React.ComponentProps<"div">) {
-  const { carouselRef, orientation } = useCarousel();
+  const { containerRef, orientation } = useCarousel();
 
   return (
     <div
-      ref={carouselRef}
-      className="overflow-hidden"
+      ref={containerRef}
+      className={cn(
+        "overflow-hidden",
+        orientation === "horizontal" ? "overflow-x-auto" : "overflow-y-auto"
+      )}
       data-slot="carousel-content"
     >
       <div
         className={cn(
-          "flex",
-          orientation === "horizontal" ? "-ml-4" : "-mt-4 flex-col",
+          "flex gap-4 snap-mandatory",
+          orientation === "horizontal"
+            ? "-ml-4 snap-x px-4"
+            : "-mt-4 flex-col snap-y pb-4",
           className
         )}
         {...props}
@@ -160,7 +189,7 @@ function CarouselItem({ className, ...props }: React.ComponentProps<"div">) {
       aria-roledescription="slide"
       data-slot="carousel-item"
       className={cn(
-        "min-w-0 shrink-0 grow-0 basis-full",
+        "min-w-0 shrink-0 grow-0 basis-full snap-start",
         orientation === "horizontal" ? "pl-4" : "pt-4",
         className
       )}
