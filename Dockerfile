@@ -1,15 +1,15 @@
-FROM node:20-slim
+FROM node:20-bookworm
 
 WORKDIR /app
 
 # Copia tudo
 COPY . .
 
-# Ativa pnpm
-RUN corepack enable
+# Ativa pnpm na versão estável
+RUN corepack enable && corepack prepare pnpm@10.25.0 --activate
 
-# Instala deps (scripts permitidos, necessário pro rollup)
-RUN pnpm install --frozen-lockfile
+# Instala deps COM scripts nativos liberados
+RUN pnpm install --frozen-lockfile --ignore-scripts=false
 
 # Build frontend + backend
 RUN pnpm run build
