@@ -70,7 +70,7 @@ export default function AgendarWizard() {
       setBarbeiroErro("");
       try {
         const query = ADMIN_TOKEN ? `?token=${ADMIN_TOKEN}` : "";
-        const res = await fetch(`${API}/admin/barbeiros${query}`);
+        const res = await fetch(`${API}/barbeiros`);
         const json = await res.json();
 
         if (!res.ok) throw new Error(json?.mensagem || "Erro ao carregar barbeiros");
